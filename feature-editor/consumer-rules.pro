@@ -1,0 +1,2 @@
+-keep class com.cycling.feature.editor.** { *; }
+-keepclassmembers class com.cycling.feature.editor.** { *; }
