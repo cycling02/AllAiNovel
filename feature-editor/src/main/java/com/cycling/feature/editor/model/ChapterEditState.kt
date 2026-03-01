@@ -12,5 +12,7 @@ data class ChapterEditState(
     val aiResult: String? = null,
     val showAiResult: Boolean = false,
     val error: String? = null,
-    val hasUnsavedChanges: Boolean = false
+    val hasUnsavedChanges: Boolean = false,
+    val initialWordCount: Int = 0,
+    val sessionStartTime: Long = 0L
 )

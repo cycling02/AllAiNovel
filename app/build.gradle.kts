@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.kotlin.serialization)
     id("com.google.devtools.ksp")
 }
 
@@ -26,7 +27,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -37,6 +38,9 @@ android {
     buildFeatures {
         compose = true
     }
+}
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
@@ -51,9 +55,12 @@ dependencies {
     implementation(project(":feature-editor"))
     implementation(project(":feature-chapter"))
     implementation(project(":feature-ai"))
+    implementation(project(":feature-outline"))
+    implementation(project(":feature-character"))
+    implementation(project(":feature-worldbuilding"))
+    implementation(project(":feature-statistics"))
+    implementation(project(":feature-tools"))
 
-    
-    
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -63,9 +70,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
-    
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -77,11 +85,10 @@ dependencies {
 
 detekt {
     config.setFrom("$rootDir/detekt.yml")
-    buildUponDefaultConfig = true
+    buildUponDefaultConfig = false
 }
 
 ktlint {
-    version.set("12.1.1")
     android.set(true)
     outputColorName.set("RED")
     reporters {

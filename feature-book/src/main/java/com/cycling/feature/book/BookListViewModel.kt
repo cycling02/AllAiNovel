@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -86,7 +87,13 @@ class BookListViewModel @Inject constructor(
                     showAddDialog = false
                 )
                 _effect.emit(BookListEffect.ShowToast("书籍创建成功"))
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = e.message
+                )
+                _effect.emit(BookListEffect.ShowError("网络错误: ${e.message}"))
+            } catch (e: RuntimeException) {
                 _state.value = _state.value.copy(
                     isLoading = false,
                     error = e.message
@@ -120,7 +127,12 @@ class BookListViewModel @Inject constructor(
                         bookToDelete = null
                     )
                     _effect.emit(BookListEffect.ShowToast("书籍删除成功"))
-                } catch (e: Exception) {
+                } catch (e: IOException) {
+                    _state.value = _state.value.copy(
+                        error = e.message
+                    )
+                    _effect.emit(BookListEffect.ShowError("网络错误: ${e.message}"))
+                } catch (e: RuntimeException) {
                     _state.value = _state.value.copy(
                         error = e.message
                     )

@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.kotlin.serialization)
     id("com.google.devtools.ksp")
 }
 
@@ -33,6 +34,10 @@ android {
     buildFeatures {
         compose = true
     }
+
+}
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
@@ -57,6 +62,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
     
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

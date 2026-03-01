@@ -3,15 +3,18 @@ package com.cycling.feature.editor.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.cycling.domain.model.Chapter
+import com.cycling.domain.model.WritingSession
 import com.cycling.domain.usecase.ai.ContinueWritingUseCase
 import com.cycling.domain.usecase.apiconfig.GetDefaultApiConfigUseCase
 import com.cycling.domain.usecase.chapter.GetChapterByIdUseCase
 import com.cycling.domain.usecase.chapter.UpdateChapterUseCase
+import com.cycling.domain.usecase.writingsession.SaveWritingSessionUseCase
 import com.cycling.feature.editor.model.ChapterEditEffect
 import com.cycling.feature.editor.model.ChapterEditIntent
 import com.cycling.feature.editor.model.ChapterEditState
-import com.cycling.feature.editor.navigation.EditorRoutes
+import com.cycling.feature.editor.navigation.ChapterEdit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,10 +36,11 @@ class ChapterEditViewModel @Inject constructor(
     getChapterByIdUseCase: GetChapterByIdUseCase,
     getDefaultApiConfigUseCase: GetDefaultApiConfigUseCase,
     private val updateChapterUseCase: UpdateChapterUseCase,
-    private val continueWritingUseCase: ContinueWritingUseCase
+    private val continueWritingUseCase: ContinueWritingUseCase,
+    private val saveWritingSessionUseCase: SaveWritingSessionUseCase
 ) : ViewModel() {
     
-    private val chapterId: Long = savedStateHandle[EditorRoutes.ChapterEdit.CHAPTER_ID_ARG] ?: 0L
+    private val chapterId: Long = savedStateHandle.toRoute<ChapterEdit>().chapterId
     
     private val chapter: StateFlow<Chapter?> = getChapterByIdUseCase(chapterId)
         .stateIn(
@@ -53,15 +57,22 @@ class ChapterEditViewModel @Inject constructor(
     
     private var saveJob: Job? = null
     private var originalContent: String = ""
+    private var sessionStartTime: Long = 0L
+    private var initialWordCount: Int = 0
     
     init {
+        sessionStartTime = System.currentTimeMillis()
+        
         viewModelScope.launch {
             chapter.collect { chap ->
                 chap?.let {
                     originalContent = it.content
+                    initialWordCount = it.content.length
                     _state.value = _state.value.copy(
                         title = it.title,
-                        content = it.content
+                        content = it.content,
+                        initialWordCount = initialWordCount,
+                        sessionStartTime = sessionStartTime
                     )
                 }
             }
@@ -72,6 +83,11 @@ class ChapterEditViewModel @Inject constructor(
                 apiConfig = getDefaultApiConfigUseCase().first()
             )
         }
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        saveWritingSession()
     }
     
     fun handleIntent(intent: ChapterEditIntent) {
@@ -183,5 +199,27 @@ class ChapterEditViewModel @Inject constructor(
     
     private fun clearError() {
         _state.value = _state.value.copy(error = null)
+    }
+    
+    private fun saveWritingSession() {
+        val currentChapter = chapter.value ?: return
+        val endTime = System.currentTimeMillis()
+        val duration = endTime - sessionStartTime
+        val endWordCount = _state.value.content.length
+        
+        if (duration >= 1000 && endWordCount != initialWordCount) {
+            viewModelScope.launch {
+                val session = WritingSession(
+                    bookId = currentChapter.bookId,
+                    chapterId = chapterId,
+                    startWordCount = initialWordCount,
+                    endWordCount = endWordCount,
+                    startTime = sessionStartTime,
+                    endTime = endTime,
+                    duration = duration
+                )
+                saveWritingSessionUseCase(session)
+            }
+        }
     }
 }

@@ -20,6 +20,7 @@
             <option value="$PROJECT_DIR$/feature-book" />
             <option value="$PROJECT_DIR$/feature-chapter" />
             <option value="$PROJECT_DIR$/feature-editor" />
+            <option value="$PROJECT_DIR$/feature-outline" />
             <option value="$PROJECT_DIR$/feature-settings" />
           </set>
         </option>

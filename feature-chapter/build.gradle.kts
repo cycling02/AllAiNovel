@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.kotlin.serialization)
     id("com.google.devtools.ksp")
 }
 
@@ -34,6 +35,9 @@ android {
         compose = true
     }
 }
+kotlin {
+    jvmToolchain(17)
+}
 
 dependencies {
     implementation(project(":domain"))
@@ -51,6 +55,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
     
     implementation(libs.kotlinx.coroutines.core)
     

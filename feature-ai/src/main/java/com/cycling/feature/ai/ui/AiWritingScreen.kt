@@ -17,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.cycling.feature.ai.AiWritingIntent
 import com.cycling.feature.ai.AiWritingMode
 import com.cycling.feature.ai.AiWritingViewModel
+import com.cycling.feature.ai.ui.components.PromptSelector
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,10 +79,18 @@ fun AiWritingScreen(
                 }
             )
 
+            PromptSelector(
+                prompts = state.prompts,
+                selectedPrompt = state.selectedPrompt,
+                onPromptSelected = { prompt ->
+                    viewModel.onIntent(AiWritingIntent.SelectPrompt(prompt))
+                }
+            )
+
             OutlinedTextField(
                 value = state.context,
                 onValueChange = { viewModel.onIntent(AiWritingIntent.UpdateContext(it)) },
-                label = { Text("上下文内") },
+                label = { Text("上下文内容") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -104,7 +113,7 @@ fun AiWritingScreen(
                 }
                 Icon(Icons.Default.AutoAwesome, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(getGenerateButtonText(state.selectedMode))
+                Text(getGenerateButtonText(state.selectedMode, state.selectedPrompt != null))
             }
 
             if (state.generatedResult.isNotEmpty()) {
@@ -212,7 +221,7 @@ fun ResultCard(
                 }
             }
 
-            Divider()
+            HorizontalDivider()
 
             Text(
                 text = result,
@@ -242,11 +251,16 @@ fun getModeText(mode: AiWritingMode): String {
     }
 }
 
-fun getGenerateButtonText(mode: AiWritingMode): String {
-    return when (mode) {
-        AiWritingMode.CONTINUE -> "开始续"
-        AiWritingMode.REWRITE -> "开始改"
-        AiWritingMode.EXPAND -> "开始扩"
-        AiWritingMode.POLISH -> "开始润"
+fun getGenerateButtonText(mode: AiWritingMode, hasSelectedPrompt: Boolean): String {
+    val modeText = when (mode) {
+        AiWritingMode.CONTINUE -> "续写"
+        AiWritingMode.REWRITE -> "改写"
+        AiWritingMode.EXPAND -> "扩写"
+        AiWritingMode.POLISH -> "润色"
+    }
+    return if (hasSelectedPrompt) {
+        "使用模板$modeText"
+    } else {
+        "开始$modeText"
     }
 }

@@ -3,8 +3,11 @@ package com.cycling.feature.ai
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cycling.domain.model.ApiConfig
+import com.cycling.domain.model.Prompt
+import com.cycling.domain.model.PromptCategory
 import com.cycling.domain.usecase.ai.ContinueWritingUseCase
 import com.cycling.domain.usecase.apiconfig.GetDefaultApiConfigUseCase
+import com.cycling.domain.usecase.prompt.GetPromptsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AiWritingViewModel @Inject constructor(
     private val continueWritingUseCase: ContinueWritingUseCase,
-    private val getDefaultApiConfigUseCase: GetDefaultApiConfigUseCase
+    private val getDefaultApiConfigUseCase: GetDefaultApiConfigUseCase,
+    private val getPromptsUseCase: GetPromptsUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AiWritingState())
@@ -27,11 +31,17 @@ class AiWritingViewModel @Inject constructor(
     private val _effect = Channel<AiWritingEffect>()
     val effect = _effect.receiveAsFlow()
 
+    init {
+        loadPrompts()
+    }
+
     fun onIntent(intent: AiWritingIntent) {
         when (intent) {
             is AiWritingIntent.LoadContext -> loadContext()
             is AiWritingIntent.UpdateContext -> updateContext(intent.context)
             is AiWritingIntent.SelectMode -> selectMode(intent.mode)
+            is AiWritingIntent.SelectPrompt -> selectPrompt(intent.prompt)
+            is AiWritingIntent.LoadPrompts -> loadPrompts()
             is AiWritingIntent.GenerateContent -> generateContent(intent.prompt)
             is AiWritingIntent.ApplyResult -> applyResult(intent.result)
             is AiWritingIntent.Regenerate -> regenerate(intent.prompt)
@@ -46,12 +56,47 @@ class AiWritingViewModel @Inject constructor(
         }
     }
 
+    private fun loadPrompts() {
+        viewModelScope.launch {
+            getPromptsUseCase().collect { prompts ->
+                val currentMode = _state.value.selectedMode
+                val category = mapModeToCategory(currentMode)
+                val filteredPrompts = prompts.filter { it.category == category }
+                _state.value = _state.value.copy(
+                    prompts = filteredPrompts,
+                    selectedPrompt = null
+                )
+            }
+        }
+    }
+
+    private fun mapModeToCategory(mode: AiWritingMode): PromptCategory {
+        return when (mode) {
+            AiWritingMode.CONTINUE -> PromptCategory.CONTINUE_WRITING
+            AiWritingMode.REWRITE -> PromptCategory.REWRITE
+            AiWritingMode.EXPAND -> PromptCategory.EXPAND
+            AiWritingMode.POLISH -> PromptCategory.POLISH
+        }
+    }
+
     private fun updateContext(context: String) {
         _state.value = _state.value.copy(context = context)
     }
 
     private fun selectMode(mode: AiWritingMode) {
-        _state.value = _state.value.copy(selectedMode = mode)
+        val category = mapModeToCategory(mode)
+        val allPrompts = _state.value.prompts
+        val filteredPrompts = allPrompts.filter { it.category == category }
+        _state.value = _state.value.copy(
+            selectedMode = mode,
+            prompts = filteredPrompts,
+            selectedPrompt = null
+        )
+        loadPrompts()
+    }
+
+    private fun selectPrompt(prompt: Prompt?) {
+        _state.value = _state.value.copy(selectedPrompt = prompt)
     }
 
     private fun generateContent(prompt: String?) {
@@ -95,8 +140,17 @@ class AiWritingViewModel @Inject constructor(
     }
 
     private fun buildPrompt(customPrompt: String?): String {
-        val mode = _state.value.selectedMode
+        val selectedPrompt = _state.value.selectedPrompt
         val context = _state.value.context
+
+        if (selectedPrompt != null) {
+            return selectedPrompt.content
+                .replace("{{context}}", context)
+                .replace("{{content}}", context)
+                .replace("{{text}}", context)
+        }
+
+        val mode = _state.value.selectedMode
 
         return when (mode) {
             AiWritingMode.CONTINUE -> {

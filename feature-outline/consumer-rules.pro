@@ -1,0 +1,2 @@
+-keep class com.cycling.feature.outline.** { *; }
+-keepclassmembers class com.cycling.feature.outline.** { *; }

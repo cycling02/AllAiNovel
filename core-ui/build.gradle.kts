@@ -34,6 +34,9 @@ android {
         compose = true
     }
 }
+kotlin {
+    jvmToolchain(17)
+}
 
 dependencies {
     implementation(project(":core-common"))

@@ -3,6 +3,8 @@ package com.cycling.feature.chapter
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.cycling.feature.chapter.navigation.ChapterList
 import com.cycling.domain.model.Chapter
 import com.cycling.domain.usecase.chapter.AddChapterUseCase
 import com.cycling.domain.usecase.chapter.DeleteChapterUseCase
@@ -26,7 +28,7 @@ class ChapterListViewModel @Inject constructor(
     private val deleteChapterUseCase: DeleteChapterUseCase
 ) : ViewModel() {
 
-    private val bookId: Long = savedStateHandle.get<Long>("bookId") ?: 0L
+    private val bookId: Long = savedStateHandle.toRoute<ChapterList>().bookId
 
     val chapters: StateFlow<List<Chapter>> = getChaptersByBookIdUseCase(bookId)
         .stateIn(

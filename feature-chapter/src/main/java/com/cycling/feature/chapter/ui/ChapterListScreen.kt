@@ -7,6 +7,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +28,9 @@ import com.cycling.feature.chapter.ChapterListEffect
 fun ChapterListScreen(
     onNavigateBack: () -> Unit,
     onNavigateToChapterEdit: (Long) -> Unit,
+    onNavigateToOutline: (Long) -> Unit,
+    onNavigateToCharacter: (Long) -> Unit,
+    onNavigateToWorldBuilding: (Long) -> Unit,
     viewModel: ChapterListViewModel = hiltViewModel()
 ) {
     val chapters by viewModel.chapters.collectAsState()
@@ -53,6 +59,17 @@ fun ChapterListScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.Description, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onNavigateToCharacter(state.bookId) }) {
+                        Icon(Icons.Default.Person, contentDescription = "角色")
+                    }
+                    IconButton(onClick = { onNavigateToOutline(state.bookId) }) {
+                        Icon(Icons.Default.List, contentDescription = "大纲")
+                    }
+                    IconButton(onClick = { onNavigateToWorldBuilding(state.bookId) }) {
+                        Icon(Icons.Default.Public, contentDescription = "世界观")
                     }
                 }
             )

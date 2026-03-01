@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChapterDao {
+    @Query("SELECT * FROM chapters ORDER BY updatedAt DESC")
+    fun getAllChapters(): Flow<List<ChapterEntity>>
+
     @Query("SELECT * FROM chapters WHERE bookId = :bookId ORDER BY chapterNumber ASC")
     fun getChaptersByBookId(bookId: Long): Flow<List<ChapterEntity>>
 

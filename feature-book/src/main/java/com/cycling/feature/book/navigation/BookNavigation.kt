@@ -6,20 +6,22 @@ import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.cycling.feature.book.ui.BookListScreen
 
-const val BOOK_LIST_ROUTE = "book_list"
-
 fun NavController.navigateToBookList(navOptions: NavOptions? = null) {
-    navigate(BOOK_LIST_ROUTE, navOptions)
+    navigate(BookList, navOptions)
 }
 
 fun NavGraphBuilder.bookListScreen(
     onNavigateToChapters: (Long) -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToStatistics: () -> Unit,
+    onNavigateToTools: () -> Unit
 ) {
-    composable(route = BOOK_LIST_ROUTE) {
+    composable<BookList> {
         BookListScreen(
             onNavigateToChapters = onNavigateToChapters,
-            onNavigateToSettings = onNavigateToSettings
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToStatistics = onNavigateToStatistics,
+            onNavigateToTools = onNavigateToTools
         )
     }
 }
