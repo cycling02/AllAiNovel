@@ -29,26 +29,32 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cycling.core.ui.components.InputBottomSheet
+import com.cycling.core.ui.components.SwipeToDeleteContainer
+import com.cycling.domain.model.Character
 import com.cycling.feature.character.CharacterListEffect
 import com.cycling.feature.character.CharacterListIntent
 import com.cycling.feature.character.CharacterListViewModel
-import com.cycling.feature.character.ui.components.AddCharacterDialog
 import com.cycling.feature.character.ui.components.AiCharacterPreviewDialog
 import com.cycling.feature.character.ui.components.AiGenerateCharacterDialog
-import com.cycling.feature.character.ui.components.DeleteCharacterDialog
-import com.cycling.feature.character.ui.components.EditCharacterDialog
 import com.cycling.feature.character.ui.components.CharacterItemCard
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,13 +65,34 @@ fun CharacterListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val effect = viewModel.effect
-    
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(effect) {
         effect.collectLatest { effect ->
             when (effect) {
                 is CharacterListEffect.ShowToast -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(effect.message)
+                    }
                 }
                 is CharacterListEffect.ShowError -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(effect.message)
+                    }
+                }
+                is CharacterListEffect.ShowUndoSnackbar -> {
+                    scope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                            message = effect.message,
+                            actionLabel = "撤销",
+                            duration = androidx.compose.material3.SnackbarDuration.Short
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.onIntent(CharacterListIntent.UndoDelete(effect.character))
+                        }
+                    }
                 }
                 is CharacterListEffect.NavigateToDetail -> {
                 }
@@ -75,7 +102,7 @@ fun CharacterListScreen(
             }
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,7 +129,8 @@ fun CharacterListScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加角色")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -121,7 +149,7 @@ fun CharacterListScreen(
                 },
                 singleLine = true
             )
-            
+
             when {
                 state.isLoading -> {
                     Box(
@@ -144,23 +172,19 @@ fun CharacterListScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(state.displayCharacters, key = { it.id }) { character ->
-                            CharacterItemCard(
+                            SwipeToDeleteCharacterItem(
                                 character = character,
-                                onEdit = {
-                                    viewModel.onIntent(CharacterListIntent.ShowEditDialog(character))
-                                },
-                                onDelete = {
-                                    viewModel.onIntent(CharacterListIntent.ShowDeleteDialog(character))
-                                }
+                                onClick = { viewModel.onIntent(CharacterListIntent.ShowEditDialog(character)) },
+                                onDelete = { viewModel.onIntent(CharacterListIntent.DeleteCharacter(character)) }
                             )
                         }
                     }
                 }
             }
         }
-        
+
         if (state.showAddDialog) {
-            AddCharacterDialog(
+            AddCharacterBottomSheet(
                 bookId = bookId,
                 onDismiss = { viewModel.onIntent(CharacterListIntent.HideAddDialog) },
                 onConfirm = { character ->
@@ -168,9 +192,9 @@ fun CharacterListScreen(
                 }
             )
         }
-        
+
         if (state.showEditDialog && state.characterToEdit != null) {
-            EditCharacterDialog(
+            EditCharacterBottomSheet(
                 character = state.characterToEdit!!,
                 onDismiss = { viewModel.onIntent(CharacterListIntent.HideEditDialog) },
                 onConfirm = { character ->
@@ -178,15 +202,7 @@ fun CharacterListScreen(
                 }
             )
         }
-        
-        if (state.showDeleteDialog && state.characterToDelete != null) {
-            DeleteCharacterDialog(
-                character = state.characterToDelete!!,
-                onDismiss = { viewModel.onIntent(CharacterListIntent.HideDeleteDialog) },
-                onConfirm = { viewModel.onIntent(CharacterListIntent.ConfirmDelete) }
-            )
-        }
-        
+
         if (state.showAiGenerateDialog) {
             AiGenerateCharacterDialog(
                 isLoading = state.isAiGenerating,
@@ -203,7 +219,7 @@ fun CharacterListScreen(
                 }
             )
         }
-        
+
         if (state.showAiPreviewDialog && state.aiGeneratedCharacters != null) {
             AiCharacterPreviewDialog(
                 characters = state.aiGeneratedCharacters!!,
@@ -211,6 +227,24 @@ fun CharacterListScreen(
                 onApply = { viewModel.onIntent(CharacterListIntent.ApplyAiCharacters) }
             )
         }
+    }
+}
+
+@Composable
+private fun SwipeToDeleteCharacterItem(
+    character: Character,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    SwipeToDeleteContainer(
+        item = character,
+        onDelete = onDelete
+    ) {
+        CharacterItemCard(
+            character = character,
+            onEdit = onClick,
+            onDelete = {}
+        )
     }
 }
 

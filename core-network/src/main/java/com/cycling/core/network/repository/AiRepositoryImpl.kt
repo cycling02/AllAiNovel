@@ -414,4 +414,423 @@ class AiRepositoryImpl @Inject constructor(
             Result.failure(Exception("内容生成失败: ${e.message}"))
         }
     }
+
+    override suspend fun parseUserDescription(
+        config: ApiConfig,
+        description: String
+    ): Result<String> {
+        return try {
+            val systemPrompt = buildParseSystemPrompt()
+            val userPrompt = buildParseUserPrompt(description)
+
+            val request = ChatCompletionRequest(
+                model = config.model,
+                messages = listOf(
+                    ChatCompletionRequest.Message(
+                        role = "system",
+                        content = systemPrompt
+                    ),
+                    ChatCompletionRequest.Message(
+                        role = "user",
+                        content = userPrompt
+                    )
+                ),
+                maxTokens = 4000,
+                temperature = 0.7
+            )
+
+            val response = openAIApi.chatCompletion(
+                fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+                authorization = "Bearer ${config.apiKey}",
+                request = request
+            )
+
+            val content = response.choices.firstOrNull()?.message?.content
+            if (content.isNullOrBlank()) {
+                Result.failure(Exception("AI返回内容为空"))
+            } else {
+                Result.success(content)
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception("API请求失败: ${e.code()} ${e.message()}"))
+        } catch (e: IOException) {
+            Result.failure(Exception("网络错误: ${e.message}"))
+        } catch (e: RuntimeException) {
+            Result.failure(Exception("解析失败: ${e.message}"))
+        }
+    }
+
+    private fun buildParseSystemPrompt(): String {
+        return """
+            你是一位专业的网络小说分析助手。你的任务是从用户的自然语言描述中提取结构化信息。
+
+            你需要以JSON格式输出提取的信息，格式如下：
+            {
+              "bookTitle": "书籍标题（如果没有，根据内容生成一个合适的）",
+              "bookGenre": "类型（如玄幻、都市、仙侠等）",
+              "bookDescription": "简介（基于描述生成100字左右的简介）",
+              "characters": [
+                {
+                  "name": "角色姓名",
+                  "identity": "身份（如主角、配角、反派等）",
+                  "attributes": {
+                    "年龄": "37岁",
+                    "修为": "九星斗圣巅峰",
+                    "特征": "哑巴、瞎子"
+                  },
+                  "relationships": [
+                    ["妻子", "洛璃"],
+                    ["妹妹", "古薰儿"]
+                  ]
+                }
+              ],
+              "worldSettings": [
+                {
+                  "category": "势力",
+                  "name": "古族",
+                  "description": "远古八族之一"
+                }
+              ],
+              "outlineStructure": [
+                {
+                  "level": 1,
+                  "title": "第一卷标题",
+                  "summary": "卷概述",
+                  "children": [
+                    {
+                      "level": 2,
+                      "title": "第一章标题",
+                      "summary": "章概述"
+                    }
+                  ]
+                }
+              ],
+              "firstChapterHint": "第一章的剧情要求或提示"
+            }
+
+            要求：
+            1. 仔细分析用户的描述，提取所有关键信息
+            2. 角色信息要完整，包括姓名、身份、关键属性、关系
+            3. 世界观设定要分类（势力、修炼体系、地点等）
+            4. 大纲结构要合理，符合网文结构
+            5. 只输出JSON，不要添加其他说明文字
+            6. 确保输出是有效的JSON格式
+        """.trimIndent()
+    }
+
+    private fun buildParseUserPrompt(description: String): String {
+        return """
+            请分析以下网络小说描述，提取结构化信息：
+
+            $description
+
+            请直接输出JSON格式的提取结果，不要添加任何解释说明。
+        """.trimIndent()
+    }
+
+    override suspend fun generateBookInfo(
+        config: ApiConfig,
+        parsedData: String
+    ): Result<String> {
+        return try {
+            val systemPrompt = """
+                你是一位专业的网络小说策划师。根据解析的数据，生成完整的书籍信息。
+                
+                输出JSON格式：
+                {
+                  "title": "书籍标题",
+                  "description": "详细简介（200字左右）",
+                  "genre": "类型"
+                }
+                
+                只输出JSON，不要添加其他说明。
+            """.trimIndent()
+
+            val request = ChatCompletionRequest(
+                model = config.model,
+                messages = listOf(
+                    ChatCompletionRequest.Message(role = "system", content = systemPrompt),
+                    ChatCompletionRequest.Message(role = "user", content = "基于以下数据生成书籍信息：\n$parsedData")
+                ),
+                maxTokens = 2000,
+                temperature = 0.8
+            )
+
+            val response = openAIApi.chatCompletion(
+                fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+                authorization = "Bearer ${config.apiKey}",
+                request = request
+            )
+
+            val content = response.choices.firstOrNull()?.message?.content
+            if (content.isNullOrBlank()) {
+                Result.failure(Exception("AI返回内容为空"))
+            } else {
+                Result.success(content)
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception("API请求失败: ${e.code()} ${e.message()}"))
+        } catch (e: IOException) {
+            Result.failure(Exception("网络错误: ${e.message}"))
+        } catch (e: RuntimeException) {
+            Result.failure(Exception("书籍信息生成失败: ${e.message}"))
+        }
+    }
+
+    override suspend fun generateCharactersBatch(
+        config: ApiConfig,
+        characterHints: List<String>
+    ): Result<String> {
+        return try {
+            val systemPrompt = """
+                你是一位专业的网络小说角色设计师。根据角色提示，生成完整的角色档案。
+                
+                输出JSON格式：
+                {
+                  "characters": [
+                    {
+                      "name": "姓名",
+                      "aliases": ["别名1", "别名2"],
+                      "gender": "性别",
+                      "age": 25,
+                      "personality": "性格特点",
+                      "appearance": "外貌描述",
+                      "background": "背景故事"
+                    }
+                  ]
+                }
+                
+                只输出JSON，不要添加其他说明。
+            """.trimIndent()
+
+            val hintsText = characterHints.joinToString("\n") { "- $it" }
+
+            val request = ChatCompletionRequest(
+                model = config.model,
+                messages = listOf(
+                    ChatCompletionRequest.Message(role = "system", content = systemPrompt),
+                    ChatCompletionRequest.Message(role = "user", content = "请为以下角色生成完整档案：\n$hintsText")
+                ),
+                maxTokens = 4000,
+                temperature = 0.9
+            )
+
+            val response = openAIApi.chatCompletion(
+                fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+                authorization = "Bearer ${config.apiKey}",
+                request = request
+            )
+
+            val content = response.choices.firstOrNull()?.message?.content
+            if (content.isNullOrBlank()) {
+                Result.failure(Exception("AI返回内容为空"))
+            } else {
+                Result.success(content)
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception("API请求失败: ${e.code()} ${e.message()}"))
+        } catch (e: IOException) {
+            Result.failure(Exception("网络错误: ${e.message}"))
+        } catch (e: RuntimeException) {
+            Result.failure(Exception("角色生成失败: ${e.message}"))
+        }
+    }
+
+    override suspend fun generateWorldSettingsBatch(
+        config: ApiConfig,
+        worldHints: List<String>
+    ): Result<String> {
+        return try {
+            val systemPrompt = """
+                你是一位专业的网络小说世界观设计师。根据设定提示，生成完整的世界观设定。
+                
+                输出JSON格式：
+                {
+                  "settings": [
+                    {
+                      "category": "分类（势力/修炼体系/地点等）",
+                      "name": "设定名称",
+                      "description": "详细描述"
+                    }
+                  ]
+                }
+                
+                只输出JSON，不要添加其他说明。
+            """.trimIndent()
+
+            val hintsText = worldHints.joinToString("\n") { "- $it" }
+
+            val request = ChatCompletionRequest(
+                model = config.model,
+                messages = listOf(
+                    ChatCompletionRequest.Message(role = "system", content = systemPrompt),
+                    ChatCompletionRequest.Message(role = "user", content = "请为以下设定生成详细描述：\n$hintsText")
+                ),
+                maxTokens = 3000,
+                temperature = 0.8
+            )
+
+            val response = openAIApi.chatCompletion(
+                fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+                authorization = "Bearer ${config.apiKey}",
+                request = request
+            )
+
+            val content = response.choices.firstOrNull()?.message?.content
+            if (content.isNullOrBlank()) {
+                Result.failure(Exception("AI返回内容为空"))
+            } else {
+                Result.success(content)
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception("API请求失败: ${e.code()} ${e.message()}"))
+        } catch (e: IOException) {
+            Result.failure(Exception("网络错误: ${e.message}"))
+        } catch (e: RuntimeException) {
+            Result.failure(Exception("世界观生成失败: ${e.message}"))
+        }
+    }
+
+    override suspend fun generateOutlineStructure(
+        config: ApiConfig,
+        bookInfo: String,
+        outlineHint: String
+    ): Result<String> {
+        return try {
+            val systemPrompt = """
+                你是一位专业的网络小说大纲策划师。根据书籍信息生成结构化大纲。
+                
+                输出JSON格式：
+                {
+                  "items": [
+                    {
+                      "title": "卷/章标题",
+                      "summary": "内容概述",
+                      "children": [
+                        {
+                          "title": "子章节标题",
+                          "summary": "子章节概述",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+                
+                只输出JSON，不要添加其他说明。
+            """.trimIndent()
+
+            val userPrompt = """
+                书籍信息：
+                $bookInfo
+                
+                大纲提示：
+                $outlineHint
+                
+                请生成结构化大纲。
+            """.trimIndent()
+
+            val request = ChatCompletionRequest(
+                model = config.model,
+                messages = listOf(
+                    ChatCompletionRequest.Message(role = "system", content = systemPrompt),
+                    ChatCompletionRequest.Message(role = "user", content = userPrompt)
+                ),
+                maxTokens = 3000,
+                temperature = 0.8
+            )
+
+            val response = openAIApi.chatCompletion(
+                fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+                authorization = "Bearer ${config.apiKey}",
+                request = request
+            )
+
+            val content = response.choices.firstOrNull()?.message?.content
+            if (content.isNullOrBlank()) {
+                Result.failure(Exception("AI返回内容为空"))
+            } else {
+                Result.success(content)
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception("API请求失败: ${e.code()} ${e.message()}"))
+        } catch (e: IOException) {
+            Result.failure(Exception("网络错误: ${e.message}"))
+        } catch (e: RuntimeException) {
+            Result.failure(Exception("大纲生成失败: ${e.message}"))
+        }
+    }
+
+    override suspend fun generateChapterContent(
+        config: ApiConfig,
+        bookInfo: String,
+        characters: String,
+        worldSettings: String,
+        outline: String,
+        chapterHint: String
+    ): Result<String> {
+        return try {
+            val systemPrompt = """
+                你是一位专业的网络小说作家。根据提供的信息，创作第一章内容。
+                
+                要求：
+                1. 开篇要吸引人，有悬念或冲突
+                2. 人物出场自然，符合设定
+                3. 场景描写生动，有画面感
+                4. 对话符合人物性格
+                5. 节奏适中，不要拖沓
+                6. 字数控制在2000-3000字
+                
+                直接输出正文内容，不要添加章节标题。
+            """.trimIndent()
+
+            val userPrompt = """
+                书籍信息：
+                $bookInfo
+                
+                角色设定：
+                $characters
+                
+                世界观设定：
+                $worldSettings
+                
+                大纲：
+                $outline
+                
+                第一章要求：
+                $chapterHint
+                
+                请创作第一章内容。
+            """.trimIndent()
+
+            val request = ChatCompletionRequest(
+                model = config.model,
+                messages = listOf(
+                    ChatCompletionRequest.Message(role = "system", content = systemPrompt),
+                    ChatCompletionRequest.Message(role = "user", content = userPrompt)
+                ),
+                maxTokens = 4000,
+                temperature = 0.85
+            )
+
+            val response = openAIApi.chatCompletion(
+                fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+                authorization = "Bearer ${config.apiKey}",
+                request = request
+            )
+
+            val content = response.choices.firstOrNull()?.message?.content
+            if (content.isNullOrBlank()) {
+                Result.failure(Exception("AI返回内容为空"))
+            } else {
+                Result.success(content)
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception("API请求失败: ${e.code()} ${e.message()}"))
+        } catch (e: IOException) {
+            Result.failure(Exception("网络错误: ${e.message}"))
+        } catch (e: RuntimeException) {
+            Result.failure(Exception("章节生成失败: ${e.message}"))
+        }
+    }
 }

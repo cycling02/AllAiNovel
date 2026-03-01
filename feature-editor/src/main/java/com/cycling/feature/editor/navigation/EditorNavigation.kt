@@ -12,11 +12,12 @@ fun NavGraphBuilder.chapterEditScreen(
     composable<ChapterEdit> { backStackEntry ->
         val route = backStackEntry.toRoute<ChapterEdit>()
         ChapterEditScreen(
-            onNavigateBack = onNavigateBack
+            onNavigateBack = onNavigateBack,
+            isEditable = route.isEditable
         )
     }
 }
 
-fun NavController.navigateToChapterEdit(chapterId: Long) {
-    navigate(ChapterEdit(chapterId))
+fun NavController.navigateToChapterEdit(chapterId: Long, isEditable: Boolean = true) {
+    navigate(ChapterEdit(chapterId, isEditable))
 }

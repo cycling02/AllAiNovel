@@ -3,4 +3,7 @@ package com.cycling.feature.editor.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ChapterEdit(val chapterId: Long)
+data class ChapterEdit(
+    val chapterId: Long,
+    val isEditable: Boolean = true
+)

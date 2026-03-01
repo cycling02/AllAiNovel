@@ -14,7 +14,12 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class StreamingClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -41,6 +46,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @StreamingClient
+    fun provideStreamingOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(300, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit {
         return Retrofit.Builder()
             .baseUrl("https://api.deepseek.com/")
@@ -57,8 +73,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideStreamApi(okHttpClient: OkHttpClient, gson: Gson): StreamApi {
-        return StreamApi(okHttpClient, gson)
+    fun provideStreamApi(@StreamingClient streamingOkHttpClient: OkHttpClient, gson: Gson): StreamApi {
+        return StreamApi(streamingOkHttpClient, gson)
     }
 
     @Provides

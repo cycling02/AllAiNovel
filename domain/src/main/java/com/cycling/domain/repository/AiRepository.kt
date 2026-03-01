@@ -44,4 +44,39 @@ interface AiRepository {
         bookContext: String,
         maxTokens: Int = 1000
     ): Flow<String>
+
+    suspend fun parseUserDescription(
+        config: ApiConfig,
+        description: String
+    ): Result<String>
+
+    suspend fun generateBookInfo(
+        config: ApiConfig,
+        parsedData: String
+    ): Result<String>
+
+    suspend fun generateCharactersBatch(
+        config: ApiConfig,
+        characterHints: List<String>
+    ): Result<String>
+
+    suspend fun generateWorldSettingsBatch(
+        config: ApiConfig,
+        worldHints: List<String>
+    ): Result<String>
+
+    suspend fun generateOutlineStructure(
+        config: ApiConfig,
+        bookInfo: String,
+        outlineHint: String
+    ): Result<String>
+
+    suspend fun generateChapterContent(
+        config: ApiConfig,
+        bookInfo: String,
+        characters: String,
+        worldSettings: String,
+        outline: String,
+        chapterHint: String
+    ): Result<String>
 }

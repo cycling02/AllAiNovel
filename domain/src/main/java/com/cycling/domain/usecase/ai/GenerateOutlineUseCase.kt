@@ -44,6 +44,7 @@ class GenerateOutlineUseCase @Inject constructor(
         val result = json.decodeFromString<OutlineGenerationDto>(cleanJson)
         
         val outlineItems = mutableListOf<OutlineItem>()
+        val lastItemByLevel = mutableMapOf<Int, Int>()
         var sortOrder = 0
         
         result.items.forEach { itemDto ->
@@ -53,7 +54,7 @@ class GenerateOutlineUseCase @Inject constructor(
                 parentLevel = -1,
                 sortOrder = sortOrder,
                 outlineItems = outlineItems,
-                lastItemByLevel = mutableMapOf()
+                lastItemByLevel = lastItemByLevel
             )
         }
         

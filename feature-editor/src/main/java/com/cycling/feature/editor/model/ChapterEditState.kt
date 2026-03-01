@@ -16,5 +16,6 @@ data class ChapterEditState(
     val sessionStartTime: Long = 0L,
     val isStreaming: Boolean = false,
     val bookContext: BookContext? = null,
-    val useContext: Boolean = true
+    val useContext: Boolean = true,
+    val isEditable: Boolean = true
 )

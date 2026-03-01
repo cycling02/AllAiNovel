@@ -7,7 +7,6 @@ sealed interface ChapterListIntent {
     data object ShowAddDialog : ChapterListIntent
     data object HideAddDialog : ChapterListIntent
     data class AddChapter(val title: String) : ChapterListIntent
-    data class ShowDeleteDialog(val chapter: Chapter) : ChapterListIntent
-    data object HideDeleteDialog : ChapterListIntent
-    data object ConfirmDelete : ChapterListIntent
+    data class DeleteChapter(val chapter: Chapter) : ChapterListIntent
+    data class UndoDelete(val chapter: Chapter) : ChapterListIntent
 }

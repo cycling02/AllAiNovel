@@ -34,6 +34,9 @@ import com.cycling.feature.tools.namegenerator.navigation.nameGeneratorScreen
 import com.cycling.feature.tools.namegenerator.navigation.navigateToNameGenerator
 import com.cycling.feature.tools.prompt.navigation.navigateToPromptManagement
 import com.cycling.feature.tools.prompt.navigation.promptManagementScreen
+import com.cycling.feature.oneclick.navigation.OneClickGeneration
+import com.cycling.feature.oneclick.navigation.oneClickGenerationScreen
+import com.cycling.feature.oneclick.navigation.navigateToOneClickGeneration
 
 @Composable
 fun AppNavigation(
@@ -55,13 +58,16 @@ fun AppNavigation(
             },
             onNavigateToTools = {
                 navController.navigateToTools()
+            },
+            onNavigateToOneClickGeneration = {
+                navController.navigateToOneClickGeneration()
             }
         )
 
         chapterListScreen(
             onNavigateBack = { navController.popBackStack() },
             onNavigateToChapterEdit = { chapterId ->
-                navController.navigateToChapterEdit(chapterId)
+                navController.navigateToChapterEdit(chapterId, isEditable = false)
             },
             onNavigateToOutline = { bookId ->
                 navController.navigateToOutlineList(bookId)
@@ -129,6 +135,13 @@ fun AppNavigation(
 
         promptManagementScreen(
             onNavigateBack = { navController.popBackStack() }
+        )
+
+        oneClickGenerationScreen(
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToEditor = { chapterId ->
+                navController.navigateToChapterEdit(chapterId)
+            }
         )
     }
 }

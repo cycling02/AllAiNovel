@@ -35,11 +35,15 @@ class StreamApi(
             .header("Authorization", authorization)
             .header("Accept", "text/event-stream")
             .header("Cache-Control", "no-cache")
+            .header("Connection", "keep-alive")
             .post(body)
             .build()
         
+        var reader: BufferedReader? = null
+        var response: okhttp3.Response? = null
+        
         try {
-            val response = okHttpClient.newCall(request).execute()
+            response = okHttpClient.newCall(request).execute()
             
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
@@ -49,13 +53,21 @@ class StreamApi(
             
             android.util.Log.d(TAG, "流式请求: 连接成功, 开始读取流")
             
-            val reader = BufferedReader(InputStreamReader(response.body?.byteStream()))
+            val responseBody = response.body
+            if (responseBody == null) {
+                android.util.Log.e(TAG, "流式请求: response body 为空")
+                throw Exception("Response body 为空")
+            }
+            
+            reader = BufferedReader(InputStreamReader(responseBody.byteStream(), "UTF-8"))
             var line: String?
             var totalContent = StringBuilder()
             var chunkCount = 0
             
             while (reader.readLine().also { line = it } != null) {
                 val currentLine = line ?: continue
+                
+                android.util.Log.v(TAG, "流式请求: 收到行 - ${currentLine.take(100)}")
                 
                 if (currentLine.startsWith("data: ")) {
                     val data = currentLine.removePrefix("data: ").trim()
@@ -80,13 +92,22 @@ class StreamApi(
                 }
             }
             
-            reader.close()
-            response.body?.close()
             android.util.Log.d(TAG, "流式请求: 流结束")
             
         } catch (e: Exception) {
             android.util.Log.e(TAG, "流式请求: 异常 - ${e.message}", e)
             throw e
+        } finally {
+            try {
+                reader?.close()
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "关闭reader失败: ${e.message}")
+            }
+            try {
+                response?.body?.close()
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "关闭response失败: ${e.message}")
+            }
         }
     }.flowOn(Dispatchers.IO)
 }

@@ -22,7 +22,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -31,24 +33,31 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cycling.core.ui.components.InputBottomSheet
+import com.cycling.core.ui.components.SwipeToDeleteContainer
+import com.cycling.domain.model.Book
 import com.cycling.feature.book.BookListEffect
 import com.cycling.feature.book.BookListIntent
 import com.cycling.feature.book.BookListViewModel
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,16 +66,19 @@ fun BookListScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
     onNavigateToTools: () -> Unit,
+    onNavigateToOneClickGeneration: () -> Unit,
     viewModel: BookListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val effect = viewModel.effect
-    
+
     var newBookTitle by remember { mutableStateOf("") }
     var showSearchBar by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(effect) {
-        effect.collectLatest { effect ->
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
             when (effect) {
                 is BookListEffect.NavigateToChapters -> {
                     onNavigateToChapters(effect.bookId)
@@ -75,18 +87,39 @@ fun BookListScreen(
                     onNavigateToSettings()
                 }
                 is BookListEffect.ShowToast -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(effect.message)
+                    }
                 }
                 is BookListEffect.ShowError -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(effect.error)
+                    }
+                }
+                is BookListEffect.ShowUndoSnackbar -> {
+                    scope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                            message = effect.message,
+                            actionLabel = "撤销",
+                            duration = androidx.compose.material3.SnackbarDuration.Short
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.onIntent(BookListIntent.UndoDelete(effect.book))
+                        }
+                    }
                 }
             }
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("我的小说") },
                 actions = {
+                    IconButton(onClick = onNavigateToOneClickGeneration) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "一键生成")
+                    }
                     IconButton(onClick = { showSearchBar = !showSearchBar }) {
                         Icon(Icons.Default.Search, contentDescription = "搜索")
                     }
@@ -109,7 +142,8 @@ fun BookListScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加书籍")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -137,7 +171,7 @@ fun BookListScreen(
                     singleLine = true
                 )
             }
-            
+
             when {
                 state.isLoading -> {
                     Box(
@@ -157,40 +191,98 @@ fun BookListScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(state.displayBooks, key = { it.id }) { book ->
-                            BookItem(
+                            SwipeToDeleteBookItem(
                                 book = book,
                                 onClick = { viewModel.navigateToChapters(book.id) },
-                                onDelete = { viewModel.onIntent(BookListIntent.ShowDeleteDialog(book)) }
+                                onDelete = { viewModel.onIntent(BookListIntent.DeleteBook(book)) }
                             )
                         }
                     }
                 }
             }
         }
-        
-        if (state.showAddDialog) {
-            AddBookDialog(
-                title = newBookTitle,
-                onTitleChange = { newBookTitle = it },
-                onDismiss = {
-                    viewModel.onIntent(BookListIntent.HideAddDialog)
-                    newBookTitle = ""
-                },
-                onConfirm = {
-                    if (newBookTitle.isNotBlank()) {
-                        viewModel.onIntent(BookListIntent.AddBook(newBookTitle))
-                        newBookTitle = ""
-                    }
-                }
+
+        InputBottomSheet(
+            visible = state.showAddDialog,
+            title = "创建新书",
+            onDismiss = {
+                viewModel.onIntent(BookListIntent.HideAddDialog)
+                newBookTitle = ""
+            },
+            confirmText = "创建",
+            confirmEnabled = newBookTitle.isNotBlank(),
+            onConfirm = {
+                viewModel.onIntent(BookListIntent.AddBook(newBookTitle))
+                newBookTitle = ""
+            }
+        ) {
+            OutlinedTextField(
+                value = newBookTitle,
+                onValueChange = { newBookTitle = it },
+                label = { Text("书名") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
             )
         }
-        
-        if (state.showDeleteDialog && state.bookToDelete != null) {
-            DeleteBookDialog(
-                bookTitle = state.bookToDelete!!.title,
-                onDismiss = { viewModel.onIntent(BookListIntent.HideDeleteDialog) },
-                onConfirm = { viewModel.onIntent(BookListIntent.ConfirmDelete) }
+    }
+}
+
+@Composable
+private fun SwipeToDeleteBookItem(
+    book: Book,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    SwipeToDeleteContainer(
+        item = book,
+        onDelete = onDelete
+    ) {
+        BookCard(book = book, onClick = onClick)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BookCard(
+    book: Book,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Book,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (book.wordCount > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${book.wordCount}字",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
         }
     }
 }
@@ -222,63 +314,4 @@ private fun EmptyBookList() {
             )
         }
     }
-}
-
-@Composable
-private fun AddBookDialog(
-    title: String,
-    onTitleChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("创建新书") },
-        text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = onTitleChange,
-                label = { Text("书名") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                enabled = title.isNotBlank()
-            ) {
-                Text("创建")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
-}
-
-
-@Composable
-private fun DeleteBookDialog(
-    bookTitle: String,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("删除书籍") },
-        text = { Text("确定要删除《$bookTitle》吗？这将删除该书的所有章节。") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("删除", color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
 }

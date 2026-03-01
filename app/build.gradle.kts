@@ -60,6 +60,7 @@ dependencies {
     implementation(project(":feature-worldbuilding"))
     implementation(project(":feature-statistics"))
     implementation(project(":feature-tools"))
+    implementation(project(":feature-oneclick"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

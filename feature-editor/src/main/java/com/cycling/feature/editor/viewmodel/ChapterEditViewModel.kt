@@ -17,6 +17,7 @@ import com.cycling.feature.editor.model.ChapterEditIntent
 import com.cycling.feature.editor.model.ChapterEditState
 import com.cycling.feature.editor.navigation.ChapterEdit
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,9 +26,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 private const val TAG = "ChapterEdit"
@@ -44,6 +48,7 @@ class ChapterEditViewModel @Inject constructor(
 ) : ViewModel() {
     
     private val chapterId: Long = savedStateHandle.toRoute<ChapterEdit>().chapterId
+    private val isEditable: Boolean = savedStateHandle.toRoute<ChapterEdit>().isEditable
     
     private val _state = MutableStateFlow(ChapterEditState())
     val state: StateFlow<ChapterEditState> = _state.asStateFlow()
@@ -60,8 +65,8 @@ class ChapterEditViewModel @Inject constructor(
     
     init {
         sessionStartTime = System.currentTimeMillis()
-        _state.value = _state.value.copy(isLoading = true)
-        android.util.Log.d(TAG, "初始化: 开始加载章节, chapterId=$chapterId")
+        _state.value = _state.value.copy(isLoading = true, isEditable = isEditable)
+        android.util.Log.d(TAG, "初始化: 开始加载章节, chapterId=$chapterId, isEditable=$isEditable")
 
         viewModelScope.launch {
             try {
@@ -226,9 +231,9 @@ class ChapterEditViewModel @Inject constructor(
 
         android.util.Log.d(TAG, "AI流式续写: 使用上下文感知=$hasContext")
 
-        streamJob = viewModelScope.launch {
+        streamJob = viewModelScope.launch(Dispatchers.IO) {
             try {
-                android.util.Log.d(TAG, "AI流式续写: 开始收集流数据")
+                android.util.Log.d(TAG, "AI流式续写: 开始收集流数据, 线程=${Thread.currentThread().name}")
 
                 val flow = if (hasContext) {
                     aiRepository.continueWritingWithContextStream(
@@ -245,31 +250,43 @@ class ChapterEditViewModel @Inject constructor(
                     )
                 }
 
+                var chunkIndex = 0
                 flow.collect { chunk ->
+                    chunkIndex++
                     newContentBuilder.append(chunk)
                     val newContent = newContentBuilder.toString()
-                    android.util.Log.d(TAG, "AI流式续写: 收到chunk, 长度=${chunk.length}, 总长度=${newContent.length}")
-                    _state.update { it.copy(content = newContent) }
+                    android.util.Log.d(TAG, "AI流式续写: 收到chunk#$chunkIndex, 内容='${chunk.take(20)}...', 总长度=${newContent.length}")
+                    
+                    withContext(Dispatchers.Main) {
+                        _state.update { 
+                            it.copy(content = newContent)
+                        }
+                        android.util.Log.d(TAG, "AI流式续写: 状态已更新, state.content长度=${_state.value.content.length}")
+                    }
                 }
 
                 val finalContent = newContentBuilder.toString()
                 android.util.Log.d(TAG, "AI流式续写: 完成, 总长度=${finalContent.length}")
-                _state.update {
-                    it.copy(
-                        isStreaming = false,
-                        isAiLoading = false,
-                        hasUnsavedChanges = finalContent != originalContent
-                    )
+                withContext(Dispatchers.Main) {
+                    _state.update {
+                        it.copy(
+                            isStreaming = false,
+                            isAiLoading = false,
+                            hasUnsavedChanges = finalContent != originalContent
+                        )
+                    }
                 }
                 scheduleAutoSave()
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "AI流式续写: 异常 - ${e.message}", e)
-                _state.update {
-                    it.copy(
-                        isStreaming = false,
-                        isAiLoading = false,
-                        error = "续写失败: ${e.message}"
-                    )
+                withContext(Dispatchers.Main) {
+                    _state.update {
+                        it.copy(
+                            isStreaming = false,
+                            isAiLoading = false,
+                            error = "续写失败: ${e.message}"
+                        )
+                    }
                 }
             }
         }

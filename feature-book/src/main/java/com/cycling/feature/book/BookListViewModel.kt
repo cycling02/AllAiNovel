@@ -24,20 +24,22 @@ class BookListViewModel @Inject constructor(
     private val addBookUseCase: AddBookUseCase,
     private val deleteBookUseCase: DeleteBookUseCase
 ) : ViewModel() {
-    
+
     private val _state = MutableStateFlow(BookListState())
     val state: StateFlow<BookListState> = _state.asStateFlow()
-    
+
     private val _effect = MutableSharedFlow<BookListEffect>()
     val effect = _effect.asSharedFlow()
-    
+
     private val booksFlow = getBooksUseCase()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-    
+
+    private var recentlyDeletedBook: Book? = null
+
     init {
         viewModelScope.launch {
             booksFlow.collect { books ->
@@ -48,34 +50,33 @@ class BookListViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun onIntent(intent: BookListIntent) {
         when (intent) {
             BookListIntent.LoadBooks -> loadBooks()
             BookListIntent.ShowAddDialog -> showAddDialog()
             BookListIntent.HideAddDialog -> hideAddDialog()
             is BookListIntent.AddBook -> addBook(intent.title)
-            is BookListIntent.ShowDeleteDialog -> showDeleteDialog(intent.book)
-            BookListIntent.HideDeleteDialog -> hideDeleteDialog()
-            BookListIntent.ConfirmDelete -> confirmDelete()
+            is BookListIntent.DeleteBook -> deleteBook(intent.book)
+            is BookListIntent.UndoDelete -> undoDelete(intent.book)
             is BookListIntent.SearchBooks -> searchBooks(intent.query)
         }
     }
-    
+
     private fun loadBooks() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
         }
     }
-    
+
     private fun showAddDialog() {
         _state.value = _state.value.copy(showAddDialog = true)
     }
-    
+
     private fun hideAddDialog() {
         _state.value = _state.value.copy(showAddDialog = false)
     }
-    
+
     private fun addBook(title: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
@@ -102,46 +103,36 @@ class BookListViewModel @Inject constructor(
             }
         }
     }
-    
-    private fun showDeleteDialog(book: Book) {
-        _state.value = _state.value.copy(
-            showDeleteDialog = true,
-            bookToDelete = book
-        )
-    }
-    
-    private fun hideDeleteDialog() {
-        _state.value = _state.value.copy(
-            showDeleteDialog = false,
-            bookToDelete = null
-        )
-    }
-    
-    private fun confirmDelete() {
+
+    private fun deleteBook(book: Book) {
         viewModelScope.launch {
-            _state.value.bookToDelete?.let { book ->
-                try {
-                    deleteBookUseCase(book.id)
-                    _state.value = _state.value.copy(
-                        showDeleteDialog = false,
-                        bookToDelete = null
-                    )
-                    _effect.emit(BookListEffect.ShowToast("书籍删除成功"))
-                } catch (e: IOException) {
-                    _state.value = _state.value.copy(
-                        error = e.message
-                    )
-                    _effect.emit(BookListEffect.ShowError("网络错误: ${e.message}"))
-                } catch (e: RuntimeException) {
-                    _state.value = _state.value.copy(
-                        error = e.message
-                    )
-                    _effect.emit(BookListEffect.ShowError("删除书籍失败: ${e.message}"))
-                }
+            try {
+                recentlyDeletedBook = book
+                deleteBookUseCase(book.id)
+                _effect.emit(BookListEffect.ShowUndoSnackbar("「${book.title}」已删除", book))
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(error = e.message)
+                _effect.emit(BookListEffect.ShowError("网络错误: ${e.message}"))
+            } catch (e: RuntimeException) {
+                _state.value = _state.value.copy(error = e.message)
+                _effect.emit(BookListEffect.ShowError("删除书籍失败: ${e.message}"))
             }
         }
     }
-    
+
+    private fun undoDelete(book: Book) {
+        viewModelScope.launch {
+            try {
+                val restoredBook = book.copy(id = 0)
+                addBookUseCase(restoredBook)
+                recentlyDeletedBook = null
+                _effect.emit(BookListEffect.ShowToast("已恢复"))
+            } catch (e: RuntimeException) {
+                _effect.emit(BookListEffect.ShowError("恢复书籍失败: ${e.message}"))
+            }
+        }
+    }
+
     private fun searchBooks(query: String) {
         val filteredBooks = filterBooks(_state.value.books, query)
         _state.value = _state.value.copy(
@@ -149,7 +140,7 @@ class BookListViewModel @Inject constructor(
             filteredBooks = filteredBooks
         )
     }
-    
+
     private fun filterBooks(books: List<Book>, query: String): List<Book> {
         return if (query.isBlank()) {
             books
@@ -157,13 +148,13 @@ class BookListViewModel @Inject constructor(
             books.filter { it.title.contains(query, ignoreCase = true) }
         }
     }
-    
+
     fun navigateToChapters(bookId: Long) {
         viewModelScope.launch {
             _effect.emit(BookListEffect.NavigateToChapters(bookId))
         }
     }
-    
+
     fun navigateToSettings() {
         viewModelScope.launch {
             _effect.emit(BookListEffect.NavigateToSettings)

@@ -46,6 +46,7 @@ import com.cycling.feature.editor.viewmodel.ChapterEditViewModel
 @Composable
 fun ChapterEditScreen(
     onNavigateBack: () -> Unit,
+    isEditable: Boolean = true,
     viewModel: ChapterEditViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -94,7 +95,7 @@ fun ChapterEditScreen(
                     }
                 },
                 actions = {
-                    if (state.hasUnsavedChanges) {
+                    if (state.hasUnsavedChanges && state.isEditable) {
                         IconButton(onClick = { viewModel.handleIntent(ChapterEditIntent.SaveChapter) }) {
                             Icon(Icons.Default.Save, contentDescription = "保存")
                         }
@@ -122,7 +123,7 @@ fun ChapterEditScreen(
                 OutlinedTextField(
                     value = state.content,
                     onValueChange = { 
-                        if (!state.isStreaming) {
+                        if (!state.isStreaming && state.isEditable) {
                             viewModel.handleIntent(ChapterEditIntent.UpdateContent(it))
                         }
                     },
@@ -132,7 +133,7 @@ fun ChapterEditScreen(
                         .padding(16.dp),
                     placeholder = { Text("开始写作...") },
                     isError = state.error != null,
-                    readOnly = state.isStreaming,
+                    readOnly = !state.isEditable || state.isStreaming,
                     trailingIcon = {
                         if (state.isStreaming) {
                             CircularProgressIndicator(
@@ -144,106 +145,115 @@ fun ChapterEditScreen(
                 )
             }
             
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-            ) {
-                val bookContext = state.bookContext
-                val hasContext = bookContext != null && 
-                    (bookContext.characters.isNotEmpty() || 
-                     bookContext.worldSettings.isNotEmpty() || 
-                     bookContext.outlineItems.isNotEmpty())
-
-                if (hasContext) {
-                    FilterChip(
-                        selected = state.useContext,
-                        onClick = { viewModel.handleIntent(ChapterEditIntent.ToggleUseContext) },
-                        label = {
-                            Text(
-                                if (state.useContext) "上下文感知: 开" else "上下文感知: 关"
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                if (state.isStreaming) {
-                    Text(
-                        text = "AI正在生成...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else if (state.isSaving) {
-                    Text(
-                        text = "保存中...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                } else if (!state.hasUnsavedChanges && state.content.isNotEmpty()) {
-                    Text(
-                        text = "已保存",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-            }
-            
-            if (state.isStreaming) {
-                Button(
-                    onClick = { viewModel.handleIntent(ChapterEditIntent.StopStreaming) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Icon(Icons.Default.Stop, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("停止生成")
-                }
+            if (!state.isEditable) {
+                Text(
+                    text = "只读模式",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             } else {
-                Button(
-                    onClick = { viewModel.handleIntent(ChapterEditIntent.ContinueWriting) },
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    enabled = !state.isAiLoading && state.apiConfig != null
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                 ) {
-                    if (state.isAiLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
+                    val bookContext = state.bookContext
+                    val hasContext = bookContext != null && 
+                        (bookContext.characters.isNotEmpty() || 
+                         bookContext.worldSettings.isNotEmpty() || 
+                         bookContext.outlineItems.isNotEmpty())
+
+                    if (hasContext) {
+                        FilterChip(
+                            selected = state.useContext,
+                            onClick = { viewModel.handleIntent(ChapterEditIntent.ToggleUseContext) },
+                            label = {
+                                Text(
+                                    if (state.useContext) "上下文感知: 开" else "上下文感知: 关"
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("AI续写中...")
-                    } else {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("AI续写")
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    if (state.isStreaming) {
+                        Text(
+                            text = "AI正在生成...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else if (state.isSaving) {
+                        Text(
+                            text = "保存中...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    } else if (!state.hasUnsavedChanges && state.content.isNotEmpty()) {
+                        Text(
+                            text = "已保存",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
                     }
                 }
-            }
-            
-            if (state.apiConfig == null) {
-                Text(
-                    text = "请先在设置中配置API",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
+                
+                if (state.isStreaming) {
+                    Button(
+                        onClick = { viewModel.handleIntent(ChapterEditIntent.StopStreaming) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.Stop, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("停止生成")
+                    }
+                } else {
+                    Button(
+                        onClick = { viewModel.handleIntent(ChapterEditIntent.ContinueWriting) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        enabled = !state.isAiLoading && state.apiConfig != null
+                    ) {
+                        if (state.isAiLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("AI续写中...")
+                        } else {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("AI续写")
+                        }
+                    }
+                }
+                
+                if (state.apiConfig == null) {
+                    Text(
+                        text = "请先在设置中配置API",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
     }

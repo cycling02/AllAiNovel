@@ -95,7 +95,7 @@ class GetBookContextUseCase @Inject constructor(
     suspend operator fun invoke(bookId: Long): BookContext {
         val book = bookRepository.getBookById(bookId).first()
         val characters = characterRepository.getCharactersByBookId(bookId).first()
-        val worldSettings = worldSettingRepository.getWorldSettingsByBookId(bookId).first()
+        val worldSettings = worldSettingRepository.getByBookId(bookId).first()
         val outlineItems = outlineRepository.getOutlineByBookId(bookId).first()
         
         return BookContext(

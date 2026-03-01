@@ -7,14 +7,12 @@ data class BookListState(
     val filteredBooks: List<Book> = emptyList(),
     val isLoading: Boolean = false,
     val showAddDialog: Boolean = false,
-    val showDeleteDialog: Boolean = false,
-    val bookToDelete: Book? = null,
     val searchQuery: String = "",
     val error: String? = null
 ) {
     val displayBooks: List<Book>
         get() = if (searchQuery.isBlank()) books else filteredBooks
-    
+
     val isEmpty: Boolean
         get() = displayBooks.isEmpty() && !isLoading
 }

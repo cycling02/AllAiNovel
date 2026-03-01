@@ -9,8 +9,10 @@ import com.cycling.domain.model.Chapter
 import com.cycling.domain.usecase.chapter.AddChapterUseCase
 import com.cycling.domain.usecase.chapter.DeleteChapterUseCase
 import com.cycling.domain.usecase.chapter.GetChaptersByBookIdUseCase
+import com.cycling.domain.usecase.chapter.UpdateChapterUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +27,8 @@ class ChapterListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     getChaptersByBookIdUseCase: GetChaptersByBookIdUseCase,
     private val addChapterUseCase: AddChapterUseCase,
-    private val deleteChapterUseCase: DeleteChapterUseCase
+    private val deleteChapterUseCase: DeleteChapterUseCase,
+    private val updateChapterUseCase: UpdateChapterUseCase
 ) : ViewModel() {
 
     private val bookId: Long = savedStateHandle.toRoute<ChapterList>().bookId
@@ -43,15 +46,16 @@ class ChapterListViewModel @Inject constructor(
     private val _effect = Channel<ChapterListEffect>()
     val effect = _effect.receiveAsFlow()
 
+    private var recentlyDeletedChapter: Chapter? = null
+
     fun processIntent(intent: ChapterListIntent) {
         when (intent) {
             is ChapterListIntent.ShowAddDialog -> showAddDialog()
             is ChapterListIntent.HideAddDialog -> hideAddDialog()
             is ChapterListIntent.AddChapter -> addChapter(intent.title)
-            is ChapterListIntent.ShowDeleteDialog -> showDeleteDialog(intent.chapter)
-            is ChapterListIntent.HideDeleteDialog -> hideDeleteDialog()
-            is ChapterListIntent.ConfirmDelete -> deleteChapter()
-            is ChapterListIntent.LoadChapters -> { /* Data loaded via StateFlow */ }
+            is ChapterListIntent.DeleteChapter -> deleteChapter(intent.chapter)
+            is ChapterListIntent.UndoDelete -> undoDelete(intent.chapter)
+            is ChapterListIntent.LoadChapters -> { }
         }
     }
 
@@ -67,7 +71,8 @@ class ChapterListViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             try {
-                val nextNumber = (chapters.value.maxOfOrNull { chapter -> chapter.chapterNumber } ?: 0) + 1
+                val currentChapters = chapters.value
+                val nextNumber = (currentChapters.maxOfOrNull { chapter -> chapter.chapterNumber } ?: 0) + 1
                 val chapter = Chapter(
                     bookId = bookId,
                     title = title.trim().ifEmpty { "第${nextNumber}章" },
@@ -89,31 +94,28 @@ class ChapterListViewModel @Inject constructor(
         }
     }
 
-    private fun showDeleteDialog(chapter: Chapter) {
-        _state.value = _state.value.copy(
-            showDeleteDialog = true,
-            chapterToDelete = chapter
-        )
-    }
-
-    private fun hideDeleteDialog() {
-        _state.value = _state.value.copy(
-            showDeleteDialog = false,
-            chapterToDelete = null
-        )
-    }
-
-    private fun deleteChapter() {
+    private fun deleteChapter(chapter: Chapter) {
         viewModelScope.launch {
             try {
-                _state.value.chapterToDelete?.let { chapter ->
-                    deleteChapterUseCase(chapter.id)
-                }
-                hideDeleteDialog()
-                _effect.send(ChapterListEffect.ChapterDeleted)
+                recentlyDeletedChapter = chapter
+                deleteChapterUseCase(chapter.id)
+                _effect.send(ChapterListEffect.ShowUndoSnackbar("「${chapter.title}」已删除", chapter))
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
                 _effect.send(ChapterListEffect.ShowError(e.message ?: "删除章节失败"))
+            }
+        }
+    }
+
+    private fun undoDelete(chapter: Chapter) {
+        viewModelScope.launch {
+            try {
+                val restoredChapter = chapter.copy(id = 0)
+                addChapterUseCase(restoredChapter)
+                recentlyDeletedChapter = null
+                _effect.send(ChapterListEffect.ChapterRestored)
+            } catch (e: Exception) {
+                _effect.send(ChapterListEffect.ShowError(e.message ?: "恢复章节失败"))
             }
         }
     }

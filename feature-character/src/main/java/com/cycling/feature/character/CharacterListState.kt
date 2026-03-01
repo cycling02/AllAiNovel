@@ -8,9 +8,7 @@ data class CharacterListState(
     val isLoading: Boolean = false,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
-    val showDeleteDialog: Boolean = false,
     val characterToEdit: Character? = null,
-    val characterToDelete: Character? = null,
     val searchQuery: String = "",
     val error: String? = null,
     val showAiGenerateDialog: Boolean = false,
@@ -20,7 +18,7 @@ data class CharacterListState(
 ) {
     val displayCharacters: List<Character>
         get() = if (searchQuery.isBlank()) characters else filteredCharacters
-    
+
     val isEmpty: Boolean
         get() = displayCharacters.isEmpty() && !isLoading
 }

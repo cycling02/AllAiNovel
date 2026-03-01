@@ -49,6 +49,8 @@ class CharacterListViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    private var recentlyDeletedCharacter: Character? = null
+
     init {
         viewModelScope.launch {
             charactersFlow.collect { characters ->
@@ -73,11 +75,10 @@ class CharacterListViewModel @Inject constructor(
             CharacterListIntent.HideAddDialog -> hideAddDialog()
             is CharacterListIntent.ShowEditDialog -> showEditDialog(intent.character)
             CharacterListIntent.HideEditDialog -> hideEditDialog()
-            is CharacterListIntent.ShowDeleteDialog -> showDeleteDialog(intent.character)
-            CharacterListIntent.HideDeleteDialog -> hideDeleteDialog()
+            is CharacterListIntent.DeleteCharacter -> deleteCharacter(intent.character)
+            is CharacterListIntent.UndoDelete -> undoDelete(intent.character)
             is CharacterListIntent.AddCharacter -> addCharacter(intent.character)
             is CharacterListIntent.UpdateCharacter -> updateCharacter(intent.character)
-            CharacterListIntent.ConfirmDelete -> confirmDelete()
             is CharacterListIntent.SearchCharacters -> searchCharacters(intent.query)
             CharacterListIntent.ShowAiGenerateDialog -> showAiGenerateDialog()
             CharacterListIntent.HideAiGenerateDialog -> hideAiGenerateDialog()
@@ -120,18 +121,33 @@ class CharacterListViewModel @Inject constructor(
         )
     }
 
-    private fun showDeleteDialog(character: Character) {
-        _state.value = _state.value.copy(
-            showDeleteDialog = true,
-            characterToDelete = character
-        )
+    private fun deleteCharacter(character: Character) {
+        viewModelScope.launch {
+            try {
+                recentlyDeletedCharacter = character
+                deleteCharacterUseCase(character.id)
+                _effect.emit(CharacterListEffect.ShowUndoSnackbar("「${character.name}」已删除", character))
+            } catch (e: IOException) {
+                _state.value = _state.value.copy(error = e.message)
+                _effect.emit(CharacterListEffect.ShowError("网络错误: ${e.message}"))
+            } catch (e: RuntimeException) {
+                _state.value = _state.value.copy(error = e.message)
+                _effect.emit(CharacterListEffect.ShowError("删除角色失败: ${e.message}"))
+            }
+        }
     }
 
-    private fun hideDeleteDialog() {
-        _state.value = _state.value.copy(
-            showDeleteDialog = false,
-            characterToDelete = null
-        )
+    private fun undoDelete(character: Character) {
+        viewModelScope.launch {
+            try {
+                val restoredCharacter = character.copy(id = 0)
+                addCharacterUseCase(restoredCharacter)
+                recentlyDeletedCharacter = null
+                _effect.emit(CharacterListEffect.ShowToast("已恢复"))
+            } catch (e: RuntimeException) {
+                _effect.emit(CharacterListEffect.ShowError("恢复角色失败: ${e.message}"))
+            }
+        }
     }
 
     private fun addCharacter(character: Character) {
@@ -190,38 +206,9 @@ class CharacterListViewModel @Inject constructor(
         }
     }
 
-    private fun confirmDelete() {
-        viewModelScope.launch {
-            _state.value.characterToDelete?.let { character ->
-                _state.value = _state.value.copy(isLoading = true)
-                try {
-                    deleteCharacterUseCase(character.id)
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        showDeleteDialog = false,
-                        characterToDelete = null
-                    )
-                    _effect.emit(CharacterListEffect.ShowToast("角色删除成功"))
-                } catch (e: IOException) {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = e.message
-                    )
-                    _effect.emit(CharacterListEffect.ShowError("网络错误: ${e.message}"))
-                } catch (e: RuntimeException) {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = e.message
-                    )
-                    _effect.emit(CharacterListEffect.ShowError("删除角色失败: ${e.message}"))
-                }
-            }
-        }
-    }
-
     private fun searchCharacters(query: String) {
         val filtered = if (query.isNotBlank()) {
-            _state.value.characters.filter { 
+            _state.value.characters.filter {
                 it.name.contains(query, ignoreCase = true) ||
                 it.alias.contains(query, ignoreCase = true)
             }
@@ -301,9 +288,9 @@ class CharacterListViewModel @Inject constructor(
     private fun applyAiCharacters() {
         viewModelScope.launch {
             val characters = _state.value.aiGeneratedCharacters ?: return@launch
-            
+
             _state.value = _state.value.copy(isLoading = true)
-            
+
             try {
                 characters.forEach { character ->
                     addCharacterUseCase(character)

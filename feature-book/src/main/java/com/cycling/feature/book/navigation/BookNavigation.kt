@@ -14,14 +14,16 @@ fun NavGraphBuilder.bookListScreen(
     onNavigateToChapters: (Long) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToTools: () -> Unit
+    onNavigateToTools: () -> Unit,
+    onNavigateToOneClickGeneration: () -> Unit
 ) {
     composable<BookList> {
         BookListScreen(
             onNavigateToChapters = onNavigateToChapters,
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToStatistics = onNavigateToStatistics,
-            onNavigateToTools = onNavigateToTools
+            onNavigateToTools = onNavigateToTools,
+            onNavigateToOneClickGeneration = onNavigateToOneClickGeneration
         )
     }
 }
