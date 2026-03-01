@@ -4,6 +4,7 @@ data class OutlineItem(
     val id: Long = 0,
     val bookId: Long,
     val parentId: Long? = null,
+    val chapterId: Long? = null,
     val title: String,
     val summary: String = "",
     val level: Int = 0,

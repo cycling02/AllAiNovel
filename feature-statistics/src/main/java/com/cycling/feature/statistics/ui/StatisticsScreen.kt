@@ -81,7 +81,7 @@ fun StatisticsScreen(
                     .padding(padding),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item {
+                item(key = "today_stats") {
                     TodayStatsCard(
                         wordsWritten = state.todayStats.wordsWritten,
                         duration = state.todayStats.duration,
@@ -89,7 +89,7 @@ fun StatisticsScreen(
                     )
                 }
 
-                item {
+                item(key = "total_stats") {
                     TotalStatsCard(
                         totalWords = state.totalStats.totalWords,
                         totalDuration = state.totalStats.totalDuration,
@@ -99,14 +99,14 @@ fun StatisticsScreen(
                     )
                 }
 
-                item {
+                item(key = "day_filter") {
                     DayFilterChip(
                         selectedDays = state.selectedDays,
                         onDaysSelected = { viewModel.handleIntent(StatisticsIntent.SelectDays(it)) }
                     )
                 }
 
-                item {
+                item(key = "trend_title") {
                     Text(
                         text = "字数趋势",
                         style = MaterialTheme.typography.titleMedium,
@@ -114,12 +114,12 @@ fun StatisticsScreen(
                     )
                 }
 
-                items(state.dailyStatistics) { dailyStats ->
+                items(state.dailyStatistics, key = { it.date }) { dailyStats ->
                     DailyStatisticsItem(dailyStats = dailyStats)
                 }
 
                 if (state.dailyStatistics.isEmpty()) {
-                    item {
+                    item(key = "empty_state") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

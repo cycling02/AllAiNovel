@@ -39,7 +39,7 @@ import com.cycling.core.database.entity.WorldSettingEntity
         PromptEntity::class,
         WritingSessionEntity::class
     ],
-    version = 1,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

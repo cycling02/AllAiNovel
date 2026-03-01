@@ -50,12 +50,15 @@ import kotlinx.coroutines.flow.collectLatest
 fun OutlineListScreen(
     bookId: Long,
     onNavigateBack: () -> Unit,
+    onNavigateToChapter: (Long) -> Unit,
     viewModel: OutlineListViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(bookId) {
+        viewModel.setBookId(bookId)
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val effect = viewModel.effect
-    
-    val uiModels = viewModel.getOutlineUiModels()
+    val uiModels by viewModel.uiModels.collectAsStateWithLifecycle()
     
     LaunchedEffect(effect) {
         effect.collectLatest { effect ->
@@ -66,6 +69,9 @@ fun OutlineListScreen(
                 }
                 OutlineListEffect.NavigateBack -> {
                     onNavigateBack()
+                }
+                is OutlineListEffect.NavigateToChapter -> {
+                    onNavigateToChapter(effect.chapterId)
                 }
             }
         }
@@ -142,7 +148,17 @@ fun OutlineListScreen(
                                 onDelete = {
                                     viewModel.onIntent(OutlineListIntent.ShowDeleteDialog(uiModel.item))
                                 },
-                                canAddChild = viewModel.canAddChild(uiModel.item)
+                                onGenerateChapter = {
+                                    android.util.Log.d("OutlineList", "Generate chapter clicked for item: ${uiModel.item.id}, level: ${uiModel.level}")
+                                    viewModel.onIntent(OutlineListIntent.GenerateChapterFromOutline(uiModel.item))
+                                },
+                                onViewChapter = {
+                                    uiModel.item.chapterId?.let {
+                                        viewModel.onIntent(OutlineListIntent.NavigateToChapter(it))
+                                    }
+                                },
+                                canAddChild = viewModel.canAddChild(uiModel.item),
+                                isGenerating = state.generatingChapterId == uiModel.item.id
                             )
                         }
                     }

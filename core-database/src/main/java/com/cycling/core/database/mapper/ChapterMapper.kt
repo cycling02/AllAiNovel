@@ -7,6 +7,7 @@ fun ChapterEntity.toModel(): Chapter {
     return Chapter(
         id = id,
         bookId = bookId,
+        outlineItemId = outlineItemId,
         title = title,
         content = content,
         chapterNumber = chapterNumber,
@@ -20,6 +21,7 @@ fun Chapter.toEntity(): ChapterEntity {
     return ChapterEntity(
         id = id,
         bookId = bookId,
+        outlineItemId = outlineItemId,
         title = title,
         content = content,
         chapterNumber = chapterNumber,

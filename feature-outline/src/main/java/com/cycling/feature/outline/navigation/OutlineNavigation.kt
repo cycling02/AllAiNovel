@@ -11,13 +11,15 @@ fun NavController.navigateToOutlineList(bookId: Long) {
 }
 
 fun NavGraphBuilder.outlineListScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToChapter: (Long) -> Unit
 ) {
     composable<OutlineList> { backStackEntry ->
         val route = backStackEntry.toRoute<OutlineList>()
         OutlineListScreen(
             bookId = route.bookId,
-            onNavigateBack = onNavigateBack
+            onNavigateBack = onNavigateBack,
+            onNavigateToChapter = onNavigateToChapter
         )
     }
 }

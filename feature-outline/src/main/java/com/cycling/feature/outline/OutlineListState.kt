@@ -17,7 +17,8 @@ data class OutlineListState(
     val showAiGenerateDialog: Boolean = false,
     val isAiGenerating: Boolean = false,
     val aiGeneratedOutline: List<OutlineItem>? = null,
-    val showAiPreviewDialog: Boolean = false
+    val showAiPreviewDialog: Boolean = false,
+    val generatingChapterId: Long? = null
 ) {
     val isEmpty: Boolean
         get() = outlineItems.isEmpty() && !isLoading

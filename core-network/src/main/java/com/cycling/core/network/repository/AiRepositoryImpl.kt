@@ -2,8 +2,11 @@ package com.cycling.core.network.repository
 
 import com.cycling.domain.model.ApiConfig
 import com.cycling.core.network.api.OpenAIApi
+import com.cycling.core.network.api.StreamApi
 import com.cycling.core.network.model.ChatCompletionRequest
 import com.cycling.domain.repository.AiRepository
+import com.google.gson.Gson
+import kotlinx.coroutines.flow.Flow
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
@@ -11,7 +14,9 @@ import javax.inject.Singleton
 
 @Singleton
 class AiRepositoryImpl @Inject constructor(
-    private val openAIApi: OpenAIApi
+    private val openAIApi: OpenAIApi,
+    private val streamApi: StreamApi,
+    private val gson: Gson
 ) : AiRepository {
     
     override suspend fun continueWriting(
@@ -59,6 +64,75 @@ class AiRepositoryImpl @Inject constructor(
             Result.failure(Exception("续写失败: ${e.message}"))
         }
     }
+
+    override fun continueWritingStream(
+        config: ApiConfig,
+        context: String,
+        maxTokens: Int
+    ): Flow<String> {
+        val systemPrompt = buildSystemPrompt()
+        val userPrompt = buildUserPrompt(context)
+        
+        val request = ChatCompletionRequest(
+            model = config.model,
+            messages = listOf(
+                ChatCompletionRequest.Message(
+                    role = "system",
+                    content = systemPrompt
+                ),
+                ChatCompletionRequest.Message(
+                    role = "user",
+                    content = userPrompt
+                )
+            ),
+            maxTokens = maxTokens,
+            temperature = 0.7,
+            stream = true
+        )
+        
+        val requestBody = gson.toJson(request)
+        
+        return streamApi.streamChatCompletion(
+            fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+            authorization = "Bearer ${config.apiKey}",
+            requestBody = requestBody
+        )
+    }
+
+    override fun continueWritingWithContextStream(
+        config: ApiConfig,
+        context: String,
+        bookContext: String,
+        maxTokens: Int
+    ): Flow<String> {
+        val systemPrompt = buildSystemPromptWithContext(bookContext)
+        val userPrompt = buildUserPrompt(context)
+
+        val request = ChatCompletionRequest(
+            model = config.model,
+            messages = listOf(
+                ChatCompletionRequest.Message(
+                    role = "system",
+                    content = systemPrompt
+                ),
+                ChatCompletionRequest.Message(
+                    role = "user",
+                    content = userPrompt
+                )
+            ),
+            maxTokens = maxTokens,
+            temperature = 0.7,
+            stream = true
+        )
+
+        val requestBody = gson.toJson(request)
+
+        return streamApi.streamChatCompletion(
+            fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+            authorization = "Bearer ${config.apiKey}",
+            requestBody = requestBody
+        )
+    }
     
     private fun buildSystemPrompt(): String {
         return """
@@ -70,6 +144,25 @@ class AiRepositoryImpl @Inject constructor(
             4. 对话要符合人物性格特点
             5. 控制节奏，张弛有度
             6. 不要添加任何解释说明，直接输出续写内容
+        """.trimIndent()
+    }
+
+    private fun buildSystemPromptWithContext(bookContext: String): String {
+        return """
+            你是一位专业的网络小说作家助手。你的任务是根据已有的小说内容，继续创作后续情节。
+            
+            以下是本书的设定资料，请在续写时参考并保持一致性：
+            
+            $bookContext
+            
+            要求：
+            1. 保持文风一致，延续已有内容的写作风格
+            2. 情节发展要合理，符合人物性格和故事逻辑
+            3. 角色行为必须符合其性格设定
+            4. 注意细节描写，包括环境、动作、心理活动等
+            5. 对话要符合人物性格特点
+            6. 控制节奏，张弛有度
+            7. 不要添加任何解释说明，直接输出续写内容
         """.trimIndent()
     }
     
@@ -277,5 +370,48 @@ class AiRepositoryImpl @Inject constructor(
 
             请直接输出JSON格式的角色数据，不要添加任何解释说明。
         """.trimIndent()
+    }
+
+    override suspend fun generateContent(
+        config: ApiConfig,
+        prompt: String,
+        maxTokens: Int
+    ): Result<String> {
+        return try {
+            val request = ChatCompletionRequest(
+                model = config.model,
+                messages = listOf(
+                    ChatCompletionRequest.Message(
+                        role = "system",
+                        content = "你是一位专业的网络小说作家，擅长创作吸引人的故事内容。"
+                    ),
+                    ChatCompletionRequest.Message(
+                        role = "user",
+                        content = prompt
+                    )
+                ),
+                maxTokens = maxTokens,
+                temperature = 0.8
+            )
+
+            val response = openAIApi.chatCompletion(
+                fullUrl = "${config.baseUrl.trimEnd('/')}/chat/completions",
+                authorization = "Bearer ${config.apiKey}",
+                request = request
+            )
+
+            val content = response.choices.firstOrNull()?.message?.content
+            if (content.isNullOrBlank()) {
+                Result.failure(Exception("AI返回内容为空"))
+            } else {
+                Result.success(content)
+            }
+        } catch (e: HttpException) {
+            Result.failure(Exception("API请求失败: ${e.code()} ${e.message()}"))
+        } catch (e: IOException) {
+            Result.failure(Exception("网络错误: ${e.message}"))
+        } catch (e: RuntimeException) {
+            Result.failure(Exception("内容生成失败: ${e.message}"))
+        }
     }
 }

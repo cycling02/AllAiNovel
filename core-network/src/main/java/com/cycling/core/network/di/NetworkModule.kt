@@ -1,8 +1,10 @@
 package com.cycling.core.network.di
 
 import com.cycling.core.network.api.OpenAIApi
+import com.cycling.core.network.api.StreamApi
 import com.cycling.core.network.repository.AiRepositoryImpl
 import com.cycling.domain.repository.AiRepository
+import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,6 +22,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideGson(): Gson = Gson()
+
+    @Provides
+    @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(
@@ -27,19 +33,19 @@ object NetworkModule {
                     level = HttpLoggingInterceptor.Level.BODY
                 }
             )
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
     }
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+    fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit {
         return Retrofit.Builder()
             .baseUrl("https://api.deepseek.com/")
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 
@@ -51,7 +57,13 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAiRepository(openAIApi: OpenAIApi): AiRepository {
-        return AiRepositoryImpl(openAIApi)
+    fun provideStreamApi(okHttpClient: OkHttpClient, gson: Gson): StreamApi {
+        return StreamApi(okHttpClient, gson)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAiRepository(openAIApi: OpenAIApi, streamApi: StreamApi, gson: Gson): AiRepository {
+        return AiRepositoryImpl(openAIApi, streamApi, gson)
     }
 }

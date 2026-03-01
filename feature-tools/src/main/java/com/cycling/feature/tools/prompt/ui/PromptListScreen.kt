@@ -116,7 +116,7 @@ fun PromptListScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                item {
+                item(key = "all") {
                     FilterChip(
                         selected = state.selectedCategory == null && !state.showFavoritesOnly,
                         onClick = {
@@ -128,7 +128,7 @@ fun PromptListScreen(
                         label = { Text("全部") }
                     )
                 }
-                item {
+                item(key = "favorites") {
                     FilterChip(
                         selected = state.showFavoritesOnly,
                         onClick = { viewModel.onIntent(PromptIntent.ToggleFavoritesFilter) },
@@ -147,7 +147,7 @@ fun PromptListScreen(
                         }
                     )
                 }
-                items(PromptCategory.entries) { category ->
+                items(PromptCategory.entries, key = { it.name }) { category ->
                     FilterChip(
                         selected = state.selectedCategory == category,
                         onClick = { viewModel.onIntent(PromptIntent.SelectCategory(category)) },

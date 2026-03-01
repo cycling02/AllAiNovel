@@ -19,15 +19,22 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["parentId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ChapterEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["chapterId"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index("bookId"), Index("parentId")]
+    indices = [Index("bookId"), Index("parentId"), Index("chapterId")]
 )
 data class OutlineItemEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val bookId: Long,
     val parentId: Long? = null,
+    val chapterId: Long? = null,
     val title: String,
     val summary: String = "",
     val level: Int = 0,

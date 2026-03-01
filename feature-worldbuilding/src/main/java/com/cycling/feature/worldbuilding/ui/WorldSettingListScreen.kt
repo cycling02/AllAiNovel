@@ -3,8 +3,6 @@ package com.cycling.feature.worldbuilding.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -54,7 +53,7 @@ import com.cycling.feature.worldbuilding.ui.components.EditWorldSettingDialog
 import com.cycling.feature.worldbuilding.ui.components.WorldSettingItemCard
 import kotlinx.coroutines.flow.collectLatest
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorldSettingListScreen(
     bookId: Long,
@@ -125,29 +124,30 @@ fun WorldSettingListScreen(
                 singleLine = true
             )
             
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.FilterAlt,
-                    contentDescription = "筛选",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .align(Alignment.CenterVertically)
-                )
+                item(key = "filter_icon") {
+                    Icon(
+                        imageVector = Icons.Default.FilterAlt,
+                        contentDescription = "筛选",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 
-                FilterChip(
-                    onClick = { viewModel.onIntent(WorldSettingListIntent.FilterByType(null)) },
-                    label = { Text("全部") },
-                    selected = state.selectedType == null
-                )
+                item(key = "all") {
+                    FilterChip(
+                        onClick = { viewModel.onIntent(WorldSettingListIntent.FilterByType(null)) },
+                        label = { Text("全部") },
+                        selected = state.selectedType == null
+                    )
+                }
                 
-                SettingType.entries.forEach { type ->
+                items(SettingType.entries, key = { it.name }) { type ->
                     FilterChip(
                         onClick = { viewModel.onIntent(WorldSettingListIntent.FilterByType(type)) },
                         label = { Text(type.displayName) },

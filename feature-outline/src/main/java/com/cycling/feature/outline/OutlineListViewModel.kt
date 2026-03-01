@@ -7,8 +7,10 @@ import com.cycling.domain.model.OutlineItem
 import com.cycling.domain.model.OutlineStatus
 import com.cycling.domain.usecase.ai.GenerateOutlineUseCase
 import com.cycling.domain.usecase.apiconfig.GetDefaultApiConfigUseCase
+import com.cycling.domain.usecase.book.GetBookByIdUseCase
 import com.cycling.domain.usecase.outline.AddOutlineItemUseCase
 import com.cycling.domain.usecase.outline.DeleteOutlineItemUseCase
+import com.cycling.domain.usecase.outline.GenerateAndSaveChapterUseCase
 import com.cycling.domain.usecase.outline.GetOutlineByBookIdUseCase
 import com.cycling.domain.usecase.outline.ReorderOutlineItemsUseCase
 import com.cycling.domain.usecase.outline.UpdateOutlineItemUseCase
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -27,17 +30,18 @@ import javax.inject.Inject
 
 @HiltViewModel
 class OutlineListViewModel @Inject constructor(
-    getOutlineByBookIdUseCase: GetOutlineByBookIdUseCase,
+    private val getOutlineByBookIdUseCase: GetOutlineByBookIdUseCase,
     private val addOutlineItemUseCase: AddOutlineItemUseCase,
     private val updateOutlineItemUseCase: UpdateOutlineItemUseCase,
     private val deleteOutlineItemUseCase: DeleteOutlineItemUseCase,
     private val reorderOutlineItemsUseCase: ReorderOutlineItemsUseCase,
     private val generateOutlineUseCase: GenerateOutlineUseCase,
     private val getDefaultApiConfigUseCase: GetDefaultApiConfigUseCase,
-    savedStateHandle: SavedStateHandle
+    private val generateAndSaveChapterUseCase: GenerateAndSaveChapterUseCase,
+    private val getBookByIdUseCase: GetBookByIdUseCase
 ) : ViewModel() {
 
-    private val bookId: Long = savedStateHandle["bookId"] ?: 0L
+    private var currentBookId: Long = 0L
 
     private val _state = MutableStateFlow(OutlineListState())
     val state: StateFlow<OutlineListState> = _state.asStateFlow()
@@ -45,16 +49,57 @@ class OutlineListViewModel @Inject constructor(
     private val _effect = MutableSharedFlow<OutlineListEffect>()
     val effect = _effect.asSharedFlow()
 
-    private val outlineFlow = getOutlineByBookIdUseCase(bookId)
+    private var outlineFlow: StateFlow<List<OutlineItem>>? = null
+
+    val uiModels: StateFlow<List<OutlineItemUiModel>> = _state
+        .map { state -> buildUiModels(state.outlineItems, state.expandedIds) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
 
-    init {
+    private fun buildUiModels(items: List<OutlineItem>, expandedIds: Set<Long>): List<OutlineItemUiModel> {
+        fun buildTree(parentId: Long?, level: Int): List<OutlineItemUiModel> {
+            val result = mutableListOf<OutlineItemUiModel>()
+            val children = items.filter { it.parentId == parentId }.sortedBy { it.sortOrder }
+
+            for (item in children) {
+                val hasChildren = items.any { it.parentId == item.id }
+                val isExpanded = expandedIds.contains(item.id)
+
+                result.add(OutlineItemUiModel(
+                    item = item,
+                    level = level,
+                    isExpanded = isExpanded,
+                    hasChildren = hasChildren
+                ))
+
+                if (hasChildren && isExpanded) {
+                    result.addAll(buildTree(item.id, level + 1))
+                }
+            }
+
+            return result
+        }
+
+        return buildTree(null, 0)
+    }
+
+    fun setBookId(bookId: Long) {
+        android.util.Log.d("OutlineList", "setBookId called with: $bookId, current: $currentBookId")
+        if (currentBookId == bookId) return
+        currentBookId = bookId
+        
+        outlineFlow = getOutlineByBookIdUseCase(bookId)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Lazily,
+                initialValue = emptyList()
+            )
+        
         viewModelScope.launch {
-            outlineFlow.collect { items ->
+            outlineFlow?.collect { items ->
                 _state.value = _state.value.copy(
                     outlineItems = items,
                     isLoading = false
@@ -82,6 +127,47 @@ class OutlineListViewModel @Inject constructor(
             is OutlineListIntent.GenerateOutline -> generateOutline(intent.topic, intent.summary, intent.chapterCount, intent.levelCount)
             OutlineListIntent.ApplyAiOutline -> applyAiOutline()
             OutlineListIntent.HideAiPreviewDialog -> hideAiPreviewDialog()
+            is OutlineListIntent.GenerateChapterFromOutline -> generateChapterFromOutline(intent.item)
+            is OutlineListIntent.NavigateToChapter -> navigateToChapter(intent.chapterId)
+        }
+    }
+
+    private fun navigateToChapter(chapterId: Long) {
+        viewModelScope.launch {
+            _effect.emit(OutlineListEffect.NavigateToChapter(chapterId))
+        }
+    }
+
+    private fun generateChapterFromOutline(item: OutlineItem) {
+        android.util.Log.d("OutlineList", "generateChapterFromOutline called for item: ${item.id}, currentBookId: $currentBookId")
+        viewModelScope.launch {
+            _state.value = _state.value.copy(generatingChapterId = item.id)
+
+            try {
+                val book = getBookByIdUseCase(currentBookId).first()
+                android.util.Log.d("OutlineList", "Book fetched: ${book?.title}")
+                val bookTitle = book?.title ?: ""
+                val bookSummary = book?.description ?: ""
+
+                val result = generateAndSaveChapterUseCase(
+                    outlineItem = item,
+                    bookTitle = bookTitle,
+                    bookSummary = bookSummary
+                )
+                android.util.Log.d("OutlineList", "Generate result: ${result.isSuccess}")
+
+                result.onSuccess { chapterId ->
+                    _state.value = _state.value.copy(generatingChapterId = null)
+                    _effect.emit(OutlineListEffect.ShowToast("章节生成成功"))
+                    _effect.emit(OutlineListEffect.NavigateToChapter(chapterId))
+                }.onFailure { error ->
+                    _state.value = _state.value.copy(generatingChapterId = null)
+                    _effect.emit(OutlineListEffect.ShowError("生成失败: ${error.message}"))
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(generatingChapterId = null)
+                _effect.emit(OutlineListEffect.ShowError("生成失败: ${e.message}"))
+            }
         }
     }
 
@@ -139,7 +225,7 @@ class OutlineListViewModel @Inject constructor(
             try {
                 val level = if (parent != null) parent.level + 1 else 0
                 val item = OutlineItem(
-                    bookId = bookId,
+                    bookId = currentBookId,
                     parentId = parent?.id,
                     title = title.trim(),
                     summary = summary.trim(),
@@ -265,36 +351,6 @@ class OutlineListViewModel @Inject constructor(
         return _state.value.outlineItems.any { it.parentId == itemId }
     }
 
-    fun getOutlineUiModels(): List<OutlineItemUiModel> {
-        val items = _state.value.outlineItems
-        val expandedIds = _state.value.expandedIds
-        
-        fun buildTree(parentId: Long?, level: Int): List<OutlineItemUiModel> {
-            val result = mutableListOf<OutlineItemUiModel>()
-            val children = items.filter { it.parentId == parentId }.sortedBy { it.sortOrder }
-            
-            for (item in children) {
-                val hasChildren = items.any { it.parentId == item.id }
-                val isExpanded = expandedIds.contains(item.id)
-                
-                result.add(OutlineItemUiModel(
-                    item = item,
-                    level = level,
-                    isExpanded = isExpanded,
-                    hasChildren = hasChildren
-                ))
-                
-                if (hasChildren && isExpanded) {
-                    result.addAll(buildTree(item.id, level + 1))
-                }
-            }
-            
-            return result
-        }
-        
-        return buildTree(null, 0)
-    }
-
     fun navigateBack() {
         viewModelScope.launch {
             _effect.emit(OutlineListEffect.NavigateBack)
@@ -335,7 +391,7 @@ class OutlineListViewModel @Inject constructor(
                 
                 val result = generateOutlineUseCase(
                     config = apiConfig,
-                    bookId = bookId,
+                    bookId = currentBookId,
                     topic = topic,
                     summary = summary,
                     chapterCount = chapterCount,
@@ -379,22 +435,18 @@ class OutlineListViewModel @Inject constructor(
             _state.value = _state.value.copy(isLoading = true)
             
             try {
-                val idMapping = mutableMapOf<Int, Long>()
+                val idMapping = mutableMapOf<Long, Long>()
                 
                 outlineItems.forEach { item ->
-                    val parentId = if (item.level == 0) {
-                        null
-                    } else {
-                        idMapping[item.level - 1]
-                    }
+                    val newParentId = item.parentId?.let { idMapping[it] }
                     
                     val itemToSave = item.copy(
-                        bookId = bookId,
-                        parentId = parentId
+                        bookId = currentBookId,
+                        parentId = newParentId
                     )
                     
                     val savedId = addOutlineItemUseCase(itemToSave)
-                    idMapping[item.level] = savedId
+                    idMapping[item.id] = savedId
                 }
                 
                 _state.value = _state.value.copy(

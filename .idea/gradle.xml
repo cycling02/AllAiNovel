@@ -19,9 +19,13 @@
             <option value="$PROJECT_DIR$/feature-ai" />
             <option value="$PROJECT_DIR$/feature-book" />
             <option value="$PROJECT_DIR$/feature-chapter" />
+            <option value="$PROJECT_DIR$/feature-character" />
             <option value="$PROJECT_DIR$/feature-editor" />
             <option value="$PROJECT_DIR$/feature-outline" />
             <option value="$PROJECT_DIR$/feature-settings" />
+            <option value="$PROJECT_DIR$/feature-statistics" />
+            <option value="$PROJECT_DIR$/feature-tools" />
+            <option value="$PROJECT_DIR$/feature-worldbuilding" />
           </set>
         </option>
       </GradleProjectSettings>

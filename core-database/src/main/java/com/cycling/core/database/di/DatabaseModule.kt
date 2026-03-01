@@ -2,6 +2,8 @@ package com.cycling.core.database.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.cycling.core.database.AppDatabase
 import com.cycling.core.database.dao.ApiConfigDao
 import com.cycling.core.database.dao.BookDao
@@ -45,6 +47,18 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // 添加 outline_items 表的 chapterId 列
+            db.execSQL("ALTER TABLE outline_items ADD COLUMN chapterId INTEGER DEFAULT NULL")
+            // 添加 chapters 表的 outlineItemId 列
+            db.execSQL("ALTER TABLE chapters ADD COLUMN outlineItemId INTEGER DEFAULT NULL")
+            // 创建新的索引
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_outline_items_chapterId ON outline_items(chapterId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_chapters_outlineItemId ON chapters(outlineItemId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideAppDatabase(
@@ -54,7 +68,9 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "ainovel_database"
-        ).fallbackToDestructiveMigration().build()
+        )
+        .addMigrations(MIGRATION_8_9)
+        .build()
     }
 
     @Provides

@@ -9,6 +9,7 @@ enum class ChapterStatus {
 data class Chapter(
     val id: Long = 0,
     val bookId: Long,
+    val outlineItemId: Long? = null,
     val title: String,
     val content: String = "",
     val chapterNumber: Int = 0,

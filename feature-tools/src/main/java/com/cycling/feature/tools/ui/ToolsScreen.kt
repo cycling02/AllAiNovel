@@ -90,7 +90,7 @@ fun ToolsScreen(
                 .padding(padding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(tools) { tool ->
+            items(tools, key = { it.title }) { tool ->
                 ToolCard(tool = tool)
             }
         }

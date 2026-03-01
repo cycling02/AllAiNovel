@@ -115,14 +115,14 @@ fun InspirationListScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    item {
+                    item(key = "all") {
                         FilterChip(
                             selected = state.selectedTag == null,
                             onClick = { viewModel.onIntent(InspirationListIntent.FilterByTag(null)) },
                             label = { Text("全部") }
                         )
                     }
-                    items(state.allTags) { tag ->
+                    items(state.allTags, key = { it }) { tag ->
                         FilterChip(
                             selected = state.selectedTag == tag,
                             onClick = { viewModel.onIntent(InspirationListIntent.FilterByTag(tag)) },

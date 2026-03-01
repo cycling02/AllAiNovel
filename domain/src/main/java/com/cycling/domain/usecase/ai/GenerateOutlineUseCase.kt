@@ -50,9 +50,10 @@ class GenerateOutlineUseCase @Inject constructor(
             sortOrder = processOutlineItemDto(
                 itemDto = itemDto,
                 bookId = bookId,
-                parentId = null,
+                parentLevel = -1,
                 sortOrder = sortOrder,
-                outlineItems = outlineItems
+                outlineItems = outlineItems,
+                lastItemByLevel = mutableMapOf()
             )
         }
         
@@ -62,34 +63,40 @@ class GenerateOutlineUseCase @Inject constructor(
     private fun processOutlineItemDto(
         itemDto: OutlineItemDto,
         bookId: Long,
-        parentId: Long?,
+        parentLevel: Int,
         sortOrder: Int,
-        outlineItems: MutableList<OutlineItem>
+        outlineItems: MutableList<OutlineItem>,
+        lastItemByLevel: MutableMap<Int, Int>
     ): Int {
         var currentSortOrder = sortOrder
         
+        val actualLevel = itemDto.level - 1
+        val parentIdIndex = lastItemByLevel[parentLevel]
+        
         val item = OutlineItem(
-            id = 0,
+            id = outlineItems.size.toLong(),
             bookId = bookId,
-            parentId = parentId,
+            parentId = if (parentLevel >= 0 && parentIdIndex != null) parentIdIndex.toLong() else null,
             title = itemDto.title,
             summary = itemDto.summary,
-            level = itemDto.level,
+            level = actualLevel,
             sortOrder = currentSortOrder,
             status = OutlineStatus.PENDING,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )
         outlineItems.add(item)
+        lastItemByLevel[actualLevel] = outlineItems.size - 1
         currentSortOrder++
         
         itemDto.children.forEach { childDto ->
             currentSortOrder = processOutlineItemDto(
                 itemDto = childDto,
                 bookId = bookId,
-                parentId = null,
+                parentLevel = actualLevel,
                 sortOrder = currentSortOrder,
-                outlineItems = outlineItems
+                outlineItems = outlineItems,
+                lastItemByLevel = lastItemByLevel
             )
         }
         

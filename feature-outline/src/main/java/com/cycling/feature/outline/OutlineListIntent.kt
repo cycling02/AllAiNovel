@@ -35,4 +35,6 @@ sealed interface OutlineListIntent {
     ) : OutlineListIntent
     data object ApplyAiOutline : OutlineListIntent
     data object HideAiPreviewDialog : OutlineListIntent
+    data class GenerateChapterFromOutline(val item: OutlineItem) : OutlineListIntent
+    data class NavigateToChapter(val chapterId: Long) : OutlineListIntent
 }

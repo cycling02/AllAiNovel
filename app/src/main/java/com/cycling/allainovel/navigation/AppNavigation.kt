@@ -88,7 +88,10 @@ fun AppNavigation(
         )
 
         outlineListScreen(
-            onNavigateBack = { navController.popBackStack() }
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToChapter = { chapterId ->
+                navController.navigateToChapterEdit(chapterId)
+            }
         )
 
         characterListScreen(

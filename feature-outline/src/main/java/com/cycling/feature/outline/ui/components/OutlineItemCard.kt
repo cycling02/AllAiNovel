@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -40,7 +42,10 @@ fun OutlineItemCard(
     onAddChild: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onGenerateChapter: () -> Unit,
+    onViewChapter: () -> Unit,
     canAddChild: Boolean,
+    isGenerating: Boolean,
     modifier: Modifier = Modifier
 ) {
     val indent = uiModel.level * 24.dp
@@ -124,6 +129,37 @@ fun OutlineItemCard(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(0.dp)
             ) {
+                if (isGenerating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(36.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else if (uiModel.item.chapterId != null) {
+                    IconButton(
+                        onClick = onViewChapter,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoStories,
+                            contentDescription = "查看章节",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                } else if (uiModel.level >= 1) {
+                    IconButton(
+                        onClick = onGenerateChapter,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoStories,
+                            contentDescription = "生成章节",
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
                 if (canAddChild) {
                     IconButton(
                         onClick = onAddChild,
@@ -137,7 +173,7 @@ fun OutlineItemCard(
                         )
                     }
                 }
-                
+
                 IconButton(
                     onClick = onEdit,
                     modifier = Modifier.size(36.dp)
@@ -149,7 +185,7 @@ fun OutlineItemCard(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                
+
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier.size(36.dp)

@@ -72,7 +72,7 @@ fun FavoriteNameList(
             contentPadding = PaddingValues(16.dp)
         ) {
             groupedFavorites.forEach { (type, names) ->
-                item {
+                item(key = "header_${type.name}") {
                     Text(
                         text = type.displayName,
                         style = MaterialTheme.typography.titleMedium,
@@ -81,7 +81,7 @@ fun FavoriteNameList(
                     )
                 }
 
-                items(names, key = { it.id }) { favorite ->
+                items(names, key = { "favorite_${it.id}_${it.name}" }) { favorite ->
                     FavoriteNameItem(
                         favorite = favorite,
                         onDelete = { onDelete(favorite.id) }
