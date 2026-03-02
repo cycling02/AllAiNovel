@@ -1,33 +1,19 @@
 package com.cycling.feature.character.ui
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import com.cycling.core.ui.components.InputBottomSheet
+import com.cycling.core.ui.components.*
 import com.cycling.domain.model.Character
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddCharacterBottomSheet(
+fun AddCharacterDialog(
     bookId: Long,
     onDismiss: () -> Unit,
     onConfirm: (Character) -> Unit
@@ -44,7 +30,7 @@ fun AddCharacterBottomSheet(
     var genderExpanded by remember { mutableStateOf(false) }
     val genderOptions = listOf("男", "女", "其他")
 
-    InputBottomSheet(
+    IOSBottomSheet(
         visible = true,
         title = "添加角色",
         onDismiss = onDismiss,
@@ -68,44 +54,34 @@ fun AddCharacterBottomSheet(
         }
     ) {
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState())
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(IOSSpacing.md)
         ) {
-            OutlinedTextField(
+            IOSTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("姓名 *") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                label = "姓名 *",
+                singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSTextField(
                 value = alias,
                 onValueChange = { alias = it },
-                label = { Text("别名") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                label = "别名",
+                singleLine = true
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             ExposedDropdownMenuBox(
                 expanded = genderExpanded,
-                onExpandedChange = { genderExpanded = it },
-                modifier = Modifier.fillMaxWidth()
+                onExpandedChange = { genderExpanded = it }
             ) {
-                OutlinedTextField(
+                IOSTextField(
                     value = gender,
                     onValueChange = { gender = it },
-                    label = { Text("性别") },
-                    readOnly = false,
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
+                    label = "性别",
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                    modifier = Modifier.menuAnchor()
                 )
 
                 ExposedDropdownMenu(
@@ -124,59 +100,44 @@ fun AddCharacterBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSTextField(
                 value = age,
                 onValueChange = { age = it },
-                label = { Text("年龄") },
+                label = "年龄",
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                modifier = Modifier.fillMaxWidth()
+                keyboardType = KeyboardType.Text
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = personality,
                 onValueChange = { personality = it },
-                label = { Text("性格") },
+                label = "性格",
                 minLines = 2,
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 3
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = appearance,
                 onValueChange = { appearance = it },
-                label = { Text("外貌") },
+                label = "外貌",
                 minLines = 2,
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 3
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = background,
                 onValueChange = { background = it },
-                label = { Text("背景") },
+                label = "背景",
                 minLines = 2,
-                maxLines = 4,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 4
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("备注") },
+                label = "备注",
                 minLines = 2,
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 3
             )
         }
     }
@@ -184,7 +145,7 @@ fun AddCharacterBottomSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditCharacterBottomSheet(
+fun EditCharacterDialog(
     character: Character,
     onDismiss: () -> Unit,
     onConfirm: (Character) -> Unit
@@ -201,7 +162,7 @@ fun EditCharacterBottomSheet(
     var genderExpanded by remember { mutableStateOf(false) }
     val genderOptions = listOf("男", "女", "其他")
 
-    InputBottomSheet(
+    IOSBottomSheet(
         visible = true,
         title = "编辑角色",
         onDismiss = onDismiss,
@@ -224,44 +185,34 @@ fun EditCharacterBottomSheet(
         }
     ) {
         Column(
-            modifier = Modifier.verticalScroll(rememberScrollState())
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(IOSSpacing.md)
         ) {
-            OutlinedTextField(
+            IOSTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("姓名 *") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                label = "姓名 *",
+                singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSTextField(
                 value = alias,
                 onValueChange = { alias = it },
-                label = { Text("别名") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                label = "别名",
+                singleLine = true
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             ExposedDropdownMenuBox(
                 expanded = genderExpanded,
-                onExpandedChange = { genderExpanded = it },
-                modifier = Modifier.fillMaxWidth()
+                onExpandedChange = { genderExpanded = it }
             ) {
-                OutlinedTextField(
+                IOSTextField(
                     value = gender,
                     onValueChange = { gender = it },
-                    label = { Text("性别") },
-                    readOnly = false,
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
+                    label = "性别",
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                    modifier = Modifier.menuAnchor()
                 )
 
                 ExposedDropdownMenu(
@@ -280,59 +231,44 @@ fun EditCharacterBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSTextField(
                 value = age,
                 onValueChange = { age = it },
-                label = { Text("年龄") },
+                label = "年龄",
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                modifier = Modifier.fillMaxWidth()
+                keyboardType = KeyboardType.Text
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = personality,
                 onValueChange = { personality = it },
-                label = { Text("性格") },
+                label = "性格",
                 minLines = 2,
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 3
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = appearance,
                 onValueChange = { appearance = it },
-                label = { Text("外貌") },
+                label = "外貌",
                 minLines = 2,
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 3
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = background,
                 onValueChange = { background = it },
-                label = { Text("背景") },
+                label = "背景",
                 minLines = 2,
-                maxLines = 4,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 4
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("备注") },
+                label = "备注",
                 minLines = 2,
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                maxLines = 3
             )
         }
     }

@@ -9,6 +9,8 @@ data class CharacterListState(
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
     val characterToEdit: Character? = null,
+    val showDeleteDialog: Boolean = false,
+    val characterToDelete: Character? = null,
     val searchQuery: String = "",
     val error: String? = null,
     val showAiGenerateDialog: Boolean = false,

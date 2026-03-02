@@ -1,43 +1,19 @@
 package com.cycling.feature.editor.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cycling.core.ui.components.*
 import com.cycling.feature.editor.model.ChapterEditEffect
 import com.cycling.feature.editor.model.ChapterEditIntent
 import com.cycling.feature.editor.viewmodel.ChapterEditViewModel
@@ -50,7 +26,6 @@ fun ChapterEditScreen(
     viewModel: ChapterEditViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    
     val snackbarHostState = remember { SnackbarHostState() }
     
     LaunchedEffect(key1 = Unit) {
@@ -62,9 +37,7 @@ fun ChapterEditScreen(
                         duration = SnackbarDuration.Short
                     )
                 }
-                is ChapterEditEffect.NavigateBack -> {
-                    onNavigateBack()
-                }
+                is ChapterEditEffect.NavigateBack -> onNavigateBack()
                 is ChapterEditEffect.ShowToast -> {
                     snackbarHostState.showSnackbar(
                         message = effect.message,
@@ -87,23 +60,20 @@ fun ChapterEditScreen(
     
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(if (state.isLoading) "加载中..." else state.title) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                },
+            IOSNavBar(
+                title = if (state.isLoading) "加载中..." else state.title,
+                onBack = onNavigateBack,
                 actions = {
                     if (state.hasUnsavedChanges && state.isEditable) {
-                        IconButton(onClick = { viewModel.handleIntent(ChapterEditIntent.SaveChapter) }) {
-                            Icon(Icons.Default.Save, contentDescription = "保存")
+                        TextButton(onClick = { viewModel.handleIntent(ChapterEditIntent.SaveChapter) }) {
+                            Text("保存")
                         }
                     }
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -111,14 +81,7 @@ fun ChapterEditScreen(
                 .padding(padding)
         ) {
             if (state.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                IOSFullScreenLoading()
             } else {
                 OutlinedTextField(
                     value = state.content,
@@ -130,14 +93,26 @@ fun ChapterEditScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    placeholder = { Text("开始写作...") },
+                        .padding(horizontal = IOSSpacing.lg),
+                    placeholder = { 
+                        Text(
+                            "开始写作...",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        ) 
+                    },
                     isError = state.error != null,
                     readOnly = !state.isEditable || state.isStreaming,
+                    shape = RoundedCornerShape(IOSRadius.lg),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    ),
                     trailingIcon = {
                         if (state.isStreaming) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(IOSSize.iconSm),
                                 strokeWidth = 2.dp
                             )
                         }
@@ -145,20 +120,42 @@ fun ChapterEditScreen(
                 )
             }
             
+            EditorBottomBar(
+                state = state,
+                onToggleContext = { viewModel.handleIntent(ChapterEditIntent.ToggleUseContext) },
+                onContinueWriting = { viewModel.handleIntent(ChapterEditIntent.ContinueWriting) },
+                onStopStreaming = { viewModel.handleIntent(ChapterEditIntent.StopStreaming) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditorBottomBar(
+    state: com.cycling.feature.editor.model.ChapterEditState,
+    onToggleContext: () -> Unit,
+    onContinueWriting: () -> Unit,
+    onStopStreaming: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = IOSSpacing.lg, vertical = IOSSpacing.md)
+        ) {
             if (!state.isEditable) {
                 Text(
                     text = "只读模式",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     val bookContext = state.bookContext
                     val hasContext = bookContext != null && 
@@ -167,91 +164,64 @@ fun ChapterEditScreen(
                          bookContext.outlineItems.isNotEmpty())
 
                     if (hasContext) {
-                        FilterChip(
-                            selected = state.useContext,
-                            onClick = { viewModel.handleIntent(ChapterEditIntent.ToggleUseContext) },
-                            label = {
-                                Text(
-                                    if (state.useContext) "上下文感知: 开" else "上下文感知: 关"
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+                        IOSCompactButton(
+                            text = if (state.useContext) "上下文: 开" else "上下文: 关",
+                            onClick = onToggleContext,
+                            style = if (state.useContext) IOSButtonStyle.Primary else IOSButtonStyle.Secondary,
+                            icon = Icons.Default.AutoAwesome
                         )
                     }
 
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    if (state.isStreaming) {
-                        Text(
-                            text = "AI正在生成...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else if (state.isSaving) {
-                        Text(
-                            text = "保存中...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    } else if (!state.hasUnsavedChanges && state.content.isNotEmpty()) {
-                        Text(
-                            text = "已保存",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                }
-                
-                if (state.isStreaming) {
-                    Button(
-                        onClick = { viewModel.handleIntent(ChapterEditIntent.StopStreaming) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Icon(Icons.Default.Stop, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("停止生成")
-                    }
-                } else {
-                    Button(
-                        onClick = { viewModel.handleIntent(ChapterEditIntent.ContinueWriting) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        enabled = !state.isAiLoading && state.apiConfig != null
-                    ) {
-                        if (state.isAiLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
+                    when {
+                        state.isStreaming -> {
+                            Text(
+                                text = "AI正在生成...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("AI续写中...")
-                        } else {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("AI续写")
+                        }
+                        state.isSaving -> {
+                            Text(
+                                text = "保存中...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        !state.hasUnsavedChanges && state.content.isNotEmpty() -> {
+                            Text(
+                                text = "已保存",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
                 
+                IOSSpacer(height = IOSSpacing.md)
+                
+                if (state.isStreaming) {
+                    IOSButton(
+                        text = "停止生成",
+                        onClick = onStopStreaming,
+                        style = IOSButtonStyle.Error,
+                        icon = Icons.Default.Stop
+                    )
+                } else {
+                    IOSButton(
+                        text = if (state.isAiLoading) "AI续写中..." else "AI续写",
+                        onClick = onContinueWriting,
+                        enabled = !state.isAiLoading && state.apiConfig != null,
+                        icon = Icons.Default.AutoAwesome,
+                        loading = state.isAiLoading
+                    )
+                }
+                
                 if (state.apiConfig == null) {
+                    IOSSpacer(height = IOSSpacing.sm)
                     Text(
                         text = "请先在设置中配置API",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }

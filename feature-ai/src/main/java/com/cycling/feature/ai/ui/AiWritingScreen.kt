@@ -4,21 +4,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cycling.core.ui.components.*
 import com.cycling.feature.ai.AiWritingIntent
 import com.cycling.feature.ai.AiWritingMode
 import com.cycling.feature.ai.AiWritingViewModel
 import com.cycling.feature.ai.ui.components.PromptSelector
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,7 +27,6 @@ fun AiWritingScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val effect = viewModel.effect
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         if (initialContext.isNotEmpty()) {
@@ -41,36 +37,25 @@ fun AiWritingScreen(
     LaunchedEffect(effect) {
         effect.collect { effect ->
             when (effect) {
-                is com.cycling.feature.ai.AiWritingEffect.ShowToast -> {
-                }
-                is com.cycling.feature.ai.AiWritingEffect.NavigateBack -> {
-                    onNavigateBack()
-                }
-                is com.cycling.feature.ai.AiWritingEffect.ApplyContentToEditor -> {
-                    onApplyContent(effect.content)
-                }
+                is com.cycling.feature.ai.AiWritingEffect.ShowToast -> {}
+                is com.cycling.feature.ai.AiWritingEffect.NavigateBack -> onNavigateBack()
+                is com.cycling.feature.ai.AiWritingEffect.ApplyContentToEditor -> onApplyContent(effect.content)
             }
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("AI 写作助手") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    // 底部导航栏页面不使用 Scaffold，由 AppNavigation 统一管理
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 顶部栏
+        IOSNavBar(title = "AI 写作助手")
+        
+        // 内容区域
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(IOSSpacing.lg)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(IOSSpacing.lg)
         ) {
             ModeSelector(
                 selectedMode = state.selectedMode,
@@ -87,34 +72,22 @@ fun AiWritingScreen(
                 }
             )
 
-            OutlinedTextField(
+            IOSMultilineTextField(
                 value = state.context,
                 onValueChange = { viewModel.onIntent(AiWritingIntent.UpdateContext(it)) },
-                label = { Text("上下文内容") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                label = "上下文内容",
                 minLines = 5,
                 maxLines = 10,
                 enabled = !state.isLoading
             )
 
-            Button(
+            IOSButton(
+                text = getGenerateButtonText(state.selectedMode, state.selectedPrompt != null),
                 onClick = { viewModel.onIntent(AiWritingIntent.GenerateContent()) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = state.context.isNotBlank() && !state.isLoading
-            ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(getGenerateButtonText(state.selectedMode, state.selectedPrompt != null))
-            }
+                enabled = state.context.isNotBlank() && !state.isLoading,
+                icon = Icons.Default.AutoAwesome,
+                loading = state.isLoading
+            )
 
             if (state.generatedResult.isNotEmpty()) {
                 ResultCard(
@@ -127,56 +100,32 @@ fun AiWritingScreen(
             }
 
             state.error?.let { error ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = { viewModel.onIntent(AiWritingIntent.DismissError) }) {
-                            Text("关闭")
-                        }
-                    }
-                }
+                IOSInlineError(
+                    message = error,
+                    onDismiss = { viewModel.onIntent(AiWritingIntent.DismissError) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun ModeSelector(
+private fun ModeSelector(
     selectedMode: AiWritingMode,
     onModeSelected: (AiWritingMode) -> Unit
 ) {
-    Column {
-        Text(
-            text = "写作模式",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+    IOSSection(title = "写作模式") {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(IOSSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(IOSSpacing.sm)
         ) {
-            AiWritingMode.values().forEach { mode ->
-                FilterChip(
-                    selected = selectedMode == mode,
+            AiWritingMode.entries.forEach { mode ->
+                IOSCompactButton(
+                    text = getModeText(mode),
                     onClick = { onModeSelected(mode) },
-                    label = { Text(getModeText(mode)) },
+                    style = if (selectedMode == mode) IOSButtonStyle.Primary else IOSButtonStyle.Secondary,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -185,19 +134,17 @@ fun ModeSelector(
 }
 
 @Composable
-fun ResultCard(
+private fun ResultCard(
     result: String,
     onApply: (String) -> Unit,
     onRegenerate: () -> Unit,
     onClear: () -> Unit,
     isLoading: Boolean
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    IOSCard {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(IOSSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(IOSSpacing.md)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -206,43 +153,44 @@ fun ResultCard(
             ) {
                 Text(
                     text = "生成结果",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(
+                Row(horizontalArrangement = Arrangement.spacedBy(IOSSpacing.xs)) {
+                    IOSIconButton(
                         onClick = onRegenerate,
+                        icon = Icons.Default.Refresh,
                         enabled = !isLoading
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "重新生成")
-                    }
-                    TextButton(onClick = onClear) {
-                        Text("清除")
-                    }
+                    )
+                    IOSIconButton(
+                        onClick = onClear,
+                        icon = Icons.Default.Close
+                    )
                 }
             }
 
-            HorizontalDivider()
+            IOSDivider()
 
             Text(
                 text = result,
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 200.dp)
                     .verticalScroll(rememberScrollState())
             )
 
-            Button(
+            IOSButton(
+                text = "应用内容",
                 onClick = { onApply(result) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("应用内容")
-            }
+                icon = Icons.Default.Check
+            )
         }
     }
 }
 
-fun getModeText(mode: AiWritingMode): String {
+private fun getModeText(mode: AiWritingMode): String {
     return when (mode) {
         AiWritingMode.CONTINUE -> "续写"
         AiWritingMode.REWRITE -> "改写"
@@ -251,13 +199,8 @@ fun getModeText(mode: AiWritingMode): String {
     }
 }
 
-fun getGenerateButtonText(mode: AiWritingMode, hasSelectedPrompt: Boolean): String {
-    val modeText = when (mode) {
-        AiWritingMode.CONTINUE -> "续写"
-        AiWritingMode.REWRITE -> "改写"
-        AiWritingMode.EXPAND -> "扩写"
-        AiWritingMode.POLISH -> "润色"
-    }
+private fun getGenerateButtonText(mode: AiWritingMode, hasSelectedPrompt: Boolean): String {
+    val modeText = getModeText(mode)
     return if (hasSelectedPrompt) {
         "使用模板$modeText"
     } else {

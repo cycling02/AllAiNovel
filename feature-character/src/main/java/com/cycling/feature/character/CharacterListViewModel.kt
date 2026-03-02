@@ -75,6 +75,9 @@ class CharacterListViewModel @Inject constructor(
             CharacterListIntent.HideAddDialog -> hideAddDialog()
             is CharacterListIntent.ShowEditDialog -> showEditDialog(intent.character)
             CharacterListIntent.HideEditDialog -> hideEditDialog()
+            is CharacterListIntent.ShowDeleteDialog -> showDeleteDialog(intent.character)
+            CharacterListIntent.HideDeleteDialog -> hideDeleteDialog()
+            CharacterListIntent.ConfirmDelete -> confirmDelete()
             is CharacterListIntent.DeleteCharacter -> deleteCharacter(intent.character)
             is CharacterListIntent.UndoDelete -> undoDelete(intent.character)
             is CharacterListIntent.AddCharacter -> addCharacter(intent.character)
@@ -119,6 +122,38 @@ class CharacterListViewModel @Inject constructor(
             showEditDialog = false,
             characterToEdit = null
         )
+    }
+
+    private fun showDeleteDialog(character: Character) {
+        _state.value = _state.value.copy(
+            showDeleteDialog = true,
+            characterToDelete = character
+        )
+    }
+
+    private fun hideDeleteDialog() {
+        _state.value = _state.value.copy(
+            showDeleteDialog = false,
+            characterToDelete = null
+        )
+    }
+
+    private fun confirmDelete() {
+        val character = _state.value.characterToDelete ?: return
+        viewModelScope.launch {
+            try {
+                deleteCharacterUseCase(character.id)
+                _state.value = _state.value.copy(
+                    showDeleteDialog = false,
+                    characterToDelete = null
+                )
+                _effect.emit(CharacterListEffect.ShowToast("「${character.name}」已删除"))
+            } catch (e: IOException) {
+                _effect.emit(CharacterListEffect.ShowError("网络错误: ${e.message}"))
+            } catch (e: RuntimeException) {
+                _effect.emit(CharacterListEffect.ShowError("删除角色失败: ${e.message}"))
+            }
+        }
     }
 
     private fun deleteCharacter(character: Character) {

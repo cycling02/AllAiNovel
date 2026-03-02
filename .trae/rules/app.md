@@ -1,3 +1,7 @@
+---
+alwaysApply: false
+description: 
+---
 # AllAiNovel 项目规则
 
 ## 项目概述

@@ -8,6 +8,9 @@ sealed interface CharacterListIntent {
     data object HideAddDialog : CharacterListIntent
     data class ShowEditDialog(val character: Character) : CharacterListIntent
     data object HideEditDialog : CharacterListIntent
+    data class ShowDeleteDialog(val character: Character) : CharacterListIntent
+    data object HideDeleteDialog : CharacterListIntent
+    data object ConfirmDelete : CharacterListIntent
     data class DeleteCharacter(val character: Character) : CharacterListIntent
     data class UndoDelete(val character: Character) : CharacterListIntent
     data class AddCharacter(val character: Character) : CharacterListIntent

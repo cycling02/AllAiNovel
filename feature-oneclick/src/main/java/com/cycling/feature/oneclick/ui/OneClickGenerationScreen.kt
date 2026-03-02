@@ -4,23 +4,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cycling.core.ui.components.*
 import com.cycling.domain.model.ApiConfig
 import com.cycling.domain.model.Character
 import com.cycling.domain.model.OutlineItem
 import com.cycling.domain.model.WorldSetting
 import com.cycling.feature.oneclick.*
 import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,58 +48,60 @@ fun OneClickGenerationScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("一键生成") },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.onIntent(OneClickGenerationIntent.NavigateBack) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
+            IOSNavBar(
+                title = "一键生成",
+                onBack = { viewModel.onIntent(OneClickGenerationIntent.NavigateBack) }
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        if (state.isGenerating) {
-            GenerationProgressContent(
-                stage = state.generationStage,
-                progress = state.progress,
-                stageText = state.currentStageText,
-                onCancel = { viewModel.onIntent(OneClickGenerationIntent.CancelGeneration) }
-            )
-        } else if (state.generationStage == GenerationStage.COMPLETED) {
-            GenerationResultContent(
-                state = state,
-                onEditBook = { viewModel.onIntent(OneClickGenerationIntent.ShowBookEditDialog) },
-                onEditCharacter = { viewModel.onIntent(OneClickGenerationIntent.ShowCharacterEditDialog(it)) },
-                onEditWorldSetting = { viewModel.onIntent(OneClickGenerationIntent.ShowWorldSettingEditDialog(it)) },
-                onEditOutlineItem = { viewModel.onIntent(OneClickGenerationIntent.ShowOutlineItemEditDialog(it)) },
-                onChapterContentChange = { viewModel.onIntent(OneClickGenerationIntent.UpdateChapterContent(it)) },
-                onApplyAll = { viewModel.onIntent(OneClickGenerationIntent.ApplyAllResults) },
-                onRegenerate = { viewModel.onIntent(OneClickGenerationIntent.StartGeneration) }
-            )
-        } else {
-            GenerationInputContent(
-                state = state,
-                onDescriptionChange = { viewModel.onIntent(OneClickGenerationIntent.UpdateDescription(it)) },
-                onToggleCharacters = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateCharacters(it)) },
-                onToggleWorldSettings = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateWorldSettings(it)) },
-                onToggleOutline = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateOutline(it)) },
-                onToggleFirstChapter = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateFirstChapter(it)) },
-                onModelSelected = { viewModel.onIntent(OneClickGenerationIntent.SelectModel(it)) },
-                onStartGeneration = { viewModel.onIntent(OneClickGenerationIntent.StartGeneration) }
-            )
-        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (state.isGenerating) {
+                GenerationProgressContent(
+                    stage = state.generationStage,
+                    progress = state.progress,
+                    stageText = state.currentStageText,
+                    onCancel = { viewModel.onIntent(OneClickGenerationIntent.CancelGeneration) }
+                )
+            } else if (state.generationStage == GenerationStage.COMPLETED) {
+                GenerationResultContent(
+                    state = state,
+                    onEditBook = { viewModel.onIntent(OneClickGenerationIntent.ShowBookEditDialog) },
+                    onEditCharacter = { viewModel.onIntent(OneClickGenerationIntent.ShowCharacterEditDialog(it)) },
+                    onEditWorldSetting = { viewModel.onIntent(OneClickGenerationIntent.ShowWorldSettingEditDialog(it)) },
+                    onEditOutlineItem = { viewModel.onIntent(OneClickGenerationIntent.ShowOutlineItemEditDialog(it)) },
+                    onChapterContentChange = { viewModel.onIntent(OneClickGenerationIntent.UpdateChapterContent(it)) },
+                    onApplyAll = { viewModel.onIntent(OneClickGenerationIntent.ApplyAllResults) },
+                    onRegenerate = { viewModel.onIntent(OneClickGenerationIntent.StartGeneration) }
+                )
+            } else {
+                GenerationInputContent(
+                    state = state,
+                    onDescriptionChange = { viewModel.onIntent(OneClickGenerationIntent.UpdateDescription(it)) },
+                    onToggleCharacters = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateCharacters(it)) },
+                    onToggleWorldSettings = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateWorldSettings(it)) },
+                    onToggleOutline = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateOutline(it)) },
+                    onToggleFirstChapter = { viewModel.onIntent(OneClickGenerationIntent.ToggleGenerateFirstChapter(it)) },
+                    onModelSelected = { viewModel.onIntent(OneClickGenerationIntent.SelectModel(it)) },
+                    onStartGeneration = { viewModel.onIntent(OneClickGenerationIntent.StartGeneration) }
+                )
+            }
 
-        state.error?.let { error ->
-            AlertDialog(
-                onDismissRequest = { viewModel.onIntent(OneClickGenerationIntent.ClearError) },
-                title = { Text("错误") },
-                text = { Text(error) },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.onIntent(OneClickGenerationIntent.ClearError) }) {
-                        Text("确定")
-                    }
-                }
-            )
+            state.error?.let { error ->
+                IOSConfirmDialog(
+                    visible = true,
+                    title = "错误",
+                    message = error,
+                    onDismiss = { viewModel.onIntent(OneClickGenerationIntent.ClearError) },
+                    onConfirm = { viewModel.onIntent(OneClickGenerationIntent.ClearError) },
+                    confirmText = "确定",
+                    dismissText = "关闭"
+                )
+            }
         }
     }
 }
@@ -120,58 +121,53 @@ private fun GenerationInputContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(IOSSpacing.lg)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(IOSSpacing.lg)
     ) {
-        OutlinedTextField(
+        IOSMultilineTextField(
             value = state.userDescription,
             onValueChange = onDescriptionChange,
-            label = { Text("描述你的想法") },
-            placeholder = { 
-                Text("示例：\n《斗破苍穹》同人小说。\n主角：古无涯，古族大少爷...\n老婆洛璃，妹妹古薰儿...\n第一章写他们日常...") 
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 200.dp),
+            label = "描述你的想法",
+            placeholder = "示例：\n《斗破苍穹》同人小说。\n主角：古无涯，古族大少爷...\n老婆洛璃，妹妹古薰儿...\n第一章写他们日常...",
+            minLines = 6,
             maxLines = 10
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        IOSCard {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(IOSSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(IOSSpacing.md)
             ) {
                 Text(
                     text = "生成选项",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(IOSSpacing.sm)
                 ) {
-                    FilterChip(
-                        selected = state.generateOptions.generateCharacters,
+                    IOSCompactButton(
+                        text = "角色",
                         onClick = { onToggleCharacters(!state.generateOptions.generateCharacters) },
-                        label = { Text("角色") }
+                        style = if (state.generateOptions.generateCharacters) IOSButtonStyle.Primary else IOSButtonStyle.Secondary
                     )
-                    FilterChip(
-                        selected = state.generateOptions.generateWorldSettings,
+                    IOSCompactButton(
+                        text = "世界观",
                         onClick = { onToggleWorldSettings(!state.generateOptions.generateWorldSettings) },
-                        label = { Text("世界观") }
+                        style = if (state.generateOptions.generateWorldSettings) IOSButtonStyle.Primary else IOSButtonStyle.Secondary
                     )
-                    FilterChip(
-                        selected = state.generateOptions.generateOutline,
+                    IOSCompactButton(
+                        text = "大纲",
                         onClick = { onToggleOutline(!state.generateOptions.generateOutline) },
-                        label = { Text("大纲") }
+                        style = if (state.generateOptions.generateOutline) IOSButtonStyle.Primary else IOSButtonStyle.Secondary
                     )
-                    FilterChip(
-                        selected = state.generateOptions.generateFirstChapter,
+                    IOSCompactButton(
+                        text = "第一章",
                         onClick = { onToggleFirstChapter(!state.generateOptions.generateFirstChapter) },
-                        label = { Text("第一章") }
+                        style = if (state.generateOptions.generateFirstChapter) IOSButtonStyle.Primary else IOSButtonStyle.Secondary
                     )
                 }
             }
@@ -182,11 +178,11 @@ private fun GenerationInputContent(
             expanded = modelExpanded,
             onExpandedChange = { modelExpanded = it }
         ) {
-            OutlinedTextField(
+            IOSTextField(
                 value = state.selectedModel?.name ?: "选择模型",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("AI模型") },
+                label = "AI模型",
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -209,17 +205,14 @@ private fun GenerationInputContent(
             }
         }
 
-        Button(
+        IOSButton(
+            text = "开始生成",
             onClick = onStartGeneration,
-            modifier = Modifier.fillMaxWidth(),
             enabled = state.userDescription.isNotBlank() && 
                       state.selectedModel != null && 
-                      state.generateOptions.hasAnyOption
-        ) {
-            Icon(Icons.Default.AutoAwesome, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("开始生成")
-        }
+                      state.generateOptions.hasAnyOption,
+            icon = Icons.Default.AutoAwesome
+        )
 
         if (state.availableModels.isEmpty()) {
             Text(
@@ -241,7 +234,7 @@ private fun GenerationProgressContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(IOSSpacing.xxxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -251,33 +244,29 @@ private fun GenerationProgressContent(
             strokeWidth = 8.dp
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        IOSSpacer(height = IOSSpacing.xl)
 
         Text(
             text = stageText,
             style = MaterialTheme.typography.titleMedium
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        IOSSpacer(height = IOSSpacing.sm)
 
         Text(
             text = "${(progress * 100).toInt()}%",
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        IOSSpacer(height = IOSSpacing.xxxl)
 
-        OutlinedButton(
+        IOSButton(
+            text = "取消生成",
             onClick = onCancel,
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.error
-            )
-        ) {
-            Icon(Icons.Default.Cancel, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("取消生成")
-        }
+            style = IOSButtonStyle.Error,
+            icon = Icons.Default.Cancel
+        )
     }
 }
 
@@ -295,221 +284,88 @@ private fun GenerationResultContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(IOSSpacing.lg)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(IOSSpacing.lg)
     ) {
         state.generatedBook?.let { book ->
-            ResultSection(
-                title = "📚 书籍信息",
-                onEdit = onEditBook
-            ) {
-                Text(book.title, style = MaterialTheme.typography.titleMedium)
-                Text(book.description, style = MaterialTheme.typography.bodyMedium)
+            IOSCard(onClick = onEditBook) {
+                Text(
+                    text = "书籍信息",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                IOSSpacer(height = IOSSpacing.sm)
+                Text(book.title, style = MaterialTheme.typography.bodyLarge)
+                Text(book.description, style = MaterialTheme.typography.bodySmall)
             }
         }
 
         if (state.generatedCharacters.isNotEmpty()) {
-            ResultSection(
-                title = "👤 角色 (${state.generatedCharacters.size}个)"
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.generatedCharacters.forEach { character ->
-                        CharacterCard(
-                            character = character,
-                            onClick = { onEditCharacter(character) }
-                        )
-                    }
+            IOSSection(title = "角色 (${state.generatedCharacters.size}个)") {
+                state.generatedCharacters.forEach { character ->
+                    IOSListItem(
+                        icon = Icons.Default.Person,
+                        title = character.name,
+                        subtitle = character.personality.take(50),
+                        onClick = { onEditCharacter(character) },
+                        showChevron = true
+                    )
                 }
             }
         }
 
         if (state.generatedWorldSettings.isNotEmpty()) {
-            ResultSection(
-                title = "🌍 世界观 (${state.generatedWorldSettings.size}个)"
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.generatedWorldSettings.forEach { setting ->
-                        WorldSettingCard(
-                            worldSetting = setting,
-                            onClick = { onEditWorldSetting(setting) }
-                        )
-                    }
+            IOSSection(title = "世界观 (${state.generatedWorldSettings.size}个)") {
+                state.generatedWorldSettings.forEach { setting ->
+                    IOSListItem(
+                        icon = Icons.Default.Public,
+                        title = "[${setting.type.displayName}] ${setting.name}",
+                        subtitle = setting.description.take(50),
+                        onClick = { onEditWorldSetting(setting) },
+                        showChevron = true
+                    )
                 }
             }
         }
 
         if (state.generatedOutline.isNotEmpty()) {
-            ResultSection(
-                title = "📋 大纲"
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    state.generatedOutline.forEach { item ->
-                        OutlineItemCard(
-                            outlineItem = item,
-                            onClick = { onEditOutlineItem(item) }
-                        )
-                    }
+            IOSSection(title = "大纲") {
+                state.generatedOutline.forEach { item ->
+                    IOSListItem(
+                        title = item.title,
+                        onClick = { onEditOutlineItem(item) },
+                        showChevron = true
+                    )
                 }
             }
         }
 
         if (state.generatedChapterContent.isNotBlank()) {
-            ResultSection(
-                title = "📝 第一章内容 (${state.generatedChapterContent.length}字)"
-            ) {
-                OutlinedTextField(
+            IOSSection(title = "第一章内容 (${state.generatedChapterContent.length}字)") {
+                IOSMultilineTextField(
                     value = state.generatedChapterContent,
                     onValueChange = onChapterContentChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 200.dp, max = 400.dp),
-                    maxLines = 15
+                    minLines = 5,
+                    maxLines = 10
                 )
             }
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(IOSSpacing.md)
         ) {
-            OutlinedButton(
+            IOSButton(
+                text = "重新生成",
                 onClick = onRegenerate,
+                style = IOSButtonStyle.Secondary,
                 modifier = Modifier.weight(1f)
-            ) {
-                Text("重新生成")
-            }
-            Button(
+            )
+            IOSButton(
+                text = "全部应用",
                 onClick = onApplyAll,
                 modifier = Modifier.weight(1f)
-            ) {
-                Text("全部应用")
-            }
-        }
-    }
-}
-
-@Composable
-private fun ResultSection(
-    title: String,
-    onEdit: (() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                onEdit?.let {
-                    TextButton(onClick = it) {
-                        Text("编辑")
-                    }
-                }
-            }
-            HorizontalDivider()
-            content()
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CharacterCard(
-    character: Character,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            Text(
-                text = character.name,
-                style = MaterialTheme.typography.titleSmall
-            )
-            if (character.personality.isNotBlank()) {
-                Text(
-                    text = "性格: ${character.personality}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (character.background.isNotBlank()) {
-                Text(
-                    text = character.background.take(100) + if (character.background.length > 100) "..." else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun WorldSettingCard(
-    worldSetting: WorldSetting,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            Text(
-                text = "[${worldSetting.type.displayName}] ${worldSetting.name}",
-                style = MaterialTheme.typography.titleSmall
-            )
-            if (worldSetting.description.isNotBlank()) {
-                Text(
-                    text = worldSetting.description.take(100) + if (worldSetting.description.length > 100) "..." else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun OutlineItemCard(
-    outlineItem: OutlineItem,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = (outlineItem.level * 16).dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(8.dp)
-        ) {
-            Text(
-                text = outlineItem.title,
-                style = MaterialTheme.typography.bodyMedium
             )
         }
     }

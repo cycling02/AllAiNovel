@@ -1,43 +1,18 @@
 package com.cycling.feature.statistics.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cycling.core.ui.components.*
 import com.cycling.domain.model.DailyStatistics
 import com.cycling.feature.statistics.model.StatisticsIntent
 import com.cycling.feature.statistics.viewmodel.StatisticsViewModel
@@ -53,33 +28,18 @@ fun StatisticsScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("写作统计") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    // 底部导航栏页面不使用 Scaffold，由 AppNavigation 统一管理
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 顶部栏
+        IOSNavBar(title = "写作统计")
+        
+        // 内容区域
         if (state.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+            IOSFullScreenLoading()
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(IOSSpacing.md)
             ) {
                 item(key = "today_stats") {
                     TodayStatsCard(
@@ -107,11 +67,7 @@ fun StatisticsScreen(
                 }
 
                 item(key = "trend_title") {
-                    Text(
-                        text = "字数趋势",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
+                    IOSSectionHeader(title = "字数趋势")
                 }
 
                 items(state.dailyStatistics, key = { it.date }) { dailyStats ->
@@ -123,7 +79,7 @@ fun StatisticsScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(32.dp),
+                                .padding(IOSSpacing.xxxl),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -133,6 +89,10 @@ fun StatisticsScreen(
                             )
                         }
                     }
+                }
+                
+                item {
+                    IOSSpacer(height = IOSSpacing.xxl)
                 }
             }
         }
@@ -145,23 +105,18 @@ private fun TodayStatsCard(
     duration: Long,
     sessionCount: Int
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+    IOSCard(
+        modifier = Modifier.padding(horizontal = IOSSpacing.lg)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(IOSSpacing.lg)
         ) {
             Text(
                 text = "今日统计",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            IOSSpacer(height = IOSSpacing.lg)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -194,19 +149,17 @@ private fun TotalStatsCard(
     totalChapters: Int,
     totalBooks: Int
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+    IOSCard(
+        modifier = Modifier.padding(horizontal = IOSSpacing.lg)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(IOSSpacing.lg)
         ) {
             Text(
                 text = "累计统计",
                 style = MaterialTheme.typography.titleMedium
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            IOSSpacer(height = IOSSpacing.lg)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -222,7 +175,7 @@ private fun TotalStatsCard(
                     value = formatDuration(totalDuration)
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            IOSSpacer(height = IOSSpacing.md)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -255,9 +208,9 @@ private fun StatItem(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(IOSSize.iconMd)
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        IOSSpacer(height = IOSSpacing.xs)
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
@@ -271,7 +224,6 @@ private fun StatItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DayFilterChip(
     selectedDays: Int,
@@ -280,33 +232,31 @@ private fun DayFilterChip(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = IOSSpacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(IOSSpacing.sm)
     ) {
-        FilterChip(
-            selected = selectedDays == 7,
+        IOSCompactButton(
+            text = "近7天",
             onClick = { onDaysSelected(7) },
-            label = { Text("近7天") }
+            style = if (selectedDays == 7) IOSButtonStyle.Primary else IOSButtonStyle.Secondary
         )
-        FilterChip(
-            selected = selectedDays == 30,
+        IOSCompactButton(
+            text = "近30天",
             onClick = { onDaysSelected(30) },
-            label = { Text("近30天") }
+            style = if (selectedDays == 30) IOSButtonStyle.Primary else IOSButtonStyle.Secondary
         )
     }
 }
 
 @Composable
 private fun DailyStatisticsItem(dailyStats: DailyStatistics) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+    IOSCard(
+        modifier = Modifier.padding(horizontal = IOSSpacing.lg)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(IOSSpacing.lg),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
